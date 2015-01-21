@@ -1,0 +1,494 @@
+How to add job control to a UNIX system
+Daniel J. Bernstein
+draft 3
+8/3/91
+
+
+Abstract
+
+We describe in detail the steps necessary to add BSD-style job control
+to any UNIX system. In place of the BSD and POSIX rules for controlling
+ttys, sessions, and process groups, we propose a very simple yet secure
+mechanism for manipulating process groups alone. This mechanism can also
+be added to existing BSD systems to provide an alternate, easier-to-use
+programming interface.
+
+
+1. Introduction
+
+Sections 2 through 6 describe selected portions of BSD 4.2 and 4.3 job
+control. Omitted is any mention of controlling ttys, POSIX sessions,
+getpgrp() and setpgrp(), TIOCGPGRP and TIOCSPGRP, tcgetpgrp() and
+tcsetpgrp(), TIOCNOTTY, setsid(), TIOCSCTTY, setpgid(), open() with or
+without O_NOCTTY, and the relations between all of those and the rest of
+the job control system, because it turns out that none of that is
+necessary to provide job control. The attitude in these sections is that
+of someone faced with a System V variant or a new UNIX system (e.g.,
+MINIX) with no job control facilities in the first place, perhaps
+without even the concept of a controlling tty; the important question is
+how little work is necessary to add job control features.
+
+Section 7 describes my new, secure, extremely simple job control
+programming interface [1]. (The interface was inspired by a comment from
+Chris Torek. It was modified slightly in response to criticism by
+John Carr. It is dedicated to Marc Teitelbaum.) The interface is enough
+to let programmers implement a job control shell or any other job
+control-cognizant applications. It solves all the problems that POSIX
+sessions were meant to solve, but it is much, much simpler, and can be
+added to a system with a minimum of effort. It can even be added to a
+BSD system, as discussed in section 8---it does not interfere with the
+old job control model in any way. This will give programmers a choice
+between the older, more complicated interface and this new, easy-to-use
+interface.
+
+Section 9 lists several job control programming techniques. Finally,
+section 10, again from the point of view of a system without job
+control, lists some common macros and similar cpp-level extensions
+which make job control programs easier to port.
+
+
+2. New kernel structures
+
+Each process ``is a member of'' a process group. In other words, there's
+a p_pgrp integer inside struct proc. init starts out in process group 0.
+Process groups remain the same across fork() and exec().
+
+Each tty has a ``foreground'' process group. In other words, there's a
+t_pgrp integer inside struct tty. (Systems where ttys are implemented
+differently, e.g., via streams, will have to store this information
+somewhere else.) A tty opened for the first time has t_pgrp set to 0.
+Each tty also has one extra keyboard character, the suspend character,
+with a default of 26 (^Z).
+
+There is a new process state (i.e., p_stat value): SSTOP. (ps usually
+reports this state as T.) When a process is in this state, it gets no
+CPU time. All signals are blocked until it leaves the state. Note that
+systems with some form of process tracing (e.g., ptrace(2)) already have
+SSTOP.
+
+
+3. Signals
+
+There are five new signals declared in <signal.h>: SIGSTOP (17), SIGTSTP
+(18), SIGCONT (19), SIGTTIN (21), SIGTTOU (22). (The numbers in
+parentheses are the standard BSD values.) Any code which works with bit
+masks representing signals must be prepared to work with 32-bit masks.
+
+The default action of a process receiving SIGSTOP, SIGTSTP, SIGTTIN, or
+SIGTTOU is to stop, i.e., enter the SSTOP state and, as detailed below,
+to generate a SIGCHLD. SIGSTOP cannot be blocked, caught, or ignored.
+(``Blocking'' refers to any mechanism by which the receipt of a signal
+is deferred. BSD provides sigblock() and sigsetmask() to manipulate a
+bit mask of blocked signals. On systems without a similar mechanism,
+SIGSTOP obviously can't be blocked in the first place. What's important
+is tht SIGSTOP always take effect immediately.)
+
+Any process which receives SIGCONT will continue, i.e., leave the SSTOP
+state; this is in addition to any signal handler installed. (Obviously
+the process cannot execute a signal handler if it's in the SSTOP state,
+receiving no CPU time!) SIGCONT cannot be blocked. A process is always
+able to send SIGCONT to any of its children, regardless of permission
+checks. (BSD actually lets you send SIGCONT to any descendant. Some
+popular BSD variants do not obey this rule.)
+
+When a process enters the SSTOP state, it generates a SIGCHLD (aka
+SIGCLD) to its parent. There are several conflicting sets of semantics
+for SIGCHLD/SIGCLD (e.g., what happens when it's ignored? when are
+zombies created?) on various systems, none of which have any relevance
+to job control.
+
+
+4. Waiting
+
+When the parent, either upon receiving a SIGCHLD or at any other time,
+does a wait(), it will not see any stopped children---i.e., job control
+doesn't change the semantics of wait(). (Process tracing does, but that
+is also irrelevant to job control.) There is a new system call, wait2,
+which lets the parent see stopped children:
+
+  #include <sys/wait.h>
+
+  int wait2(status,options)
+  int *status;
+  int options;
+
+(In fact, BSD has a wait3() call instead of wait2(); the above call is
+the same as wait3(status,options,(struct rusage *) 0). See section 10
+for further details.) options is a bit field. You have to define two
+bits, WNOHANG and WUNTRACED, in <sys/wait.h>, for use as options.
+
+Normally wait2() acts like wait(): it blocks waiting for a child to die
+and then returns the dead pid, or returns -1 immediately if there are no
+live children. If options includes WNOHANG, wait2() will return 0
+immediately instead of blocking. If options includes WUNTRACED, wait2()
+will return the pid of a stopped child as well as the pid of a dead
+child. (By far the most common options value is WNOHANG | WUNTRACED.)
+
+As usual, when wait2() returns a pid, status says what's happened to
+that pid. This is a bit more complicated than before because status also
+has to tell the parent what happened if the child stopped. Here's the
+whole story: If the low 7 bits are all set, the child has in fact
+stopped. If none of those bits are set, the child has exited normally.
+Otherwise the child has been terminated by a signal, and those 7 bits
+say which signal it was. (If the 8th bit is set in that case, the child
+dumped core.) If the child has stopped, the 8th bit is 0, and the 8 bits
+after that say which signal (SIGTTOU, for instance) stopped the process.
+If the child has exited, the 8th bit is 0, and the 8 bits after that
+give its exit code mod 256.
+
+
+5. Terminal-generated signals
+
+When the interrupt character (typically ^C under BSD, DEL under System V)
+is typed on a terminal in cooked mode, if the terminal's foreground
+process group is non-zero, every process in that process group is sent
+SIGINT. Similarly, the quit character (typically ^\ under BSD) generates
+SIGQUIT. If a terminal is ``hung up'', it generates SIGHUP. Job control
+needs one extra signal so that the user can tell the current process to
+stop: namely, the suspend character mentioned above (typically ^Z),
+which generates SIGTSTP. Notice that if a user could set his tty's
+process group arbitrarily, he could send all sorts of signals to any
+processes in those process groups. So it is important for security that
+tty process groups be controlled.
+
+The suspend character is the first user interface aspect of job control
+mentioned so far. Typically the processes stop (though they can catch
+SIGTSTP and do something else). A job-control shell then receives the
+SIGCHLD and, with wait2(), sees that its children have stopped. It can
+report this to the user and present a new prompt. The user can then
+start more processes, or, with an ``fg'' (foreground) command, tell the
+shell to send SIGCONT to the children so that they start up again.
+
+Programs can inspect and set the suspend character with two new tty
+ioctls: TIOCGLTC and TIOCSLTC, both defined in <sys/ioctl.h>. In both
+cases the argument points to a ``struct ltchars'' (defined in the same
+place), which contains a char t_suspc specifying the suspend character.
+
+As a matter of fact, under BSD there are several other local terminal
+characters (that's what ltchars stands for), notably t_dsuspc. The
+delayed suspend character (typically ^Y) is supposed to act like the
+suspend character but only when a process actually reads it. However,
+several operating system releases from Sun simply don't do this. They
+pass dsusp through like any other character. Given that almost nobody
+ever notices this bug, let alone complains about it, I don't think
+there's any point in bothering to implement the character.
+
+
+6. I/O-generated signals
+
+There's another side to the job control user interface: namely, several
+processes (or pipelines---in general, ``jobs'') can read and write the
+tty at once. The job-control shell places each pipeline into a separate
+process group, and when any job except the foreground job reads from the
+tty, it is stopped until the user decides to give it input. This is much
+more flexible than cutting background processes off from the tty
+permanently, as non-job-control shells do.
+
+More precisely, if a process reads from a tty, and its process group is
+not the foreground process group of the tty, then its process group is
+sent a SIGTTIN signal. As an exception, if that process is blocking or
+ignoring SIGTTIN, no signal is generated. Instead, the read returns -1
+with errno of EIO. ``Reading'' here includes only read(), not the
+various tty ioctls which inspect tty structures; while there are some
+benefits of generating SIGTTIN for the latter, this turns out to be too
+restrictive for many applications. (There is an ioctl, TIOCSTI, which is
+also lumped with ``reading,'' but a full discussion of TIOCSTI would be
+too long for this paper. It's not an important enough ioctl to bother
+with.)
+
+If a process writes to a tty, and its process group is not the
+foreground process group of the tty, then its process group is sent a
+SIGTTOU signal. As an exception, if that process is blocking or ignoring
+SIGTTOU, no signal is generated and it is allowed to produce output.
+This time, ``write'' includes not only write() but also any other
+operations which affect the tty in any way. (Under BSD there is a tty
+mode, LTOSTOP, which when disabled turns off TTOU for write() but not
+for other operations. This is not absolutely necessary, but if you have
+any free time you should implement stty tostop to turn LTOSTOP on and
+stty -tostop to turn it off. The internal interface is unimportant as
+long as the user can select his favorite behavior.)
+
+None of the above apply to operations by a process in process group 0.
+Process group 0 must never, ever, be sent I/O-generated signals. The
+simplest course of action here is to let all operations from process
+group 0 succeed. (What actually happens in this case isn't too
+important, as long as processes like getty can open a tty and start
+programs on the tty. Most BSD-derived systems set process group to pid
+when a process in process group 0 opens a tty; this behavior is not
+necessary. Note that if a process in process group 0 reads from a tty
+while a shell is still reading from it, the two read()s will compete for
+terminal input.)
+
+Notice that if a process can join an arbitrary process group, it can
+cause SIGTTOU and SIGTTIN to be sent to other process. So it's important
+for security that processes' process groups be controlled.
+
+Be careful in implementing I/O-generated signals that you test
+repeatedly for the right process group. The process could easily receive
+SIGCONT while the tty is in a different group. In that case it should
+immediately stop the process group again (without even executing a
+SIGCONT handler!), generate another SIGCHLD, and wait for the next
+SIGCONT. This can repeat any number of times. Only when the tty is in
+the right process group should the operation succeed.
+
+
+7. A new, secure, simple job control programming interface
+
+The process group calls described in this section are, unlike the job
+control features described in sections 2 through 6, not part of BSD,
+though they do not interfere with BSD. There are a total of three calls
+which manipulate process groups: tcnewpgrp(), settpgrp(), tctpgrp().
+Throughout this section, fdtty is a file descriptor pointing to a
+terminal.
+
+If fdtty has write access, tcnewpgrp(fdtty) should allocate an unused
+process group and set the terminal's foreground process group to that
+new process group. This is a write operation and should produce SIGTTOU
+if this process is not in the foreground (and is not ignoring the
+signal, etc.). tcnewpgrp returns 0 on success, -1 with errno ENOTTY if
+fdtty is not a terminal, -1 with errno EBADF if fdtty is not open for
+writing.
+
+If fdtty has read access, settpgrp(fdtty) should set this process's
+process group to the foreground process group of the terminal. As a
+special case, settpgrp(-1) sets this process's process group to 0, so
+that it is exempt from job control. The latter is redundant---a process
+can just as easily create a process group for itself, fork, and hide the
+child away inside that group---but convenient. settpgrp returns 0 on
+success, -1 with errno ENOTTY if fdtty is not -1 and not a terminal, -1
+with errno EBADF if fdtty is not open for reading.
+
+If fdtty has write access, and pid is the current process or a child of
+the current process, tctpgrp(fdtty,pid) should set the terminal's
+foreground process group to the process group of pid. This is a write
+operation. You may want to allow pid to be any descendant of the current
+process (under BSD this simplifies the implementation), but this is not
+necessary for a job control shell, and nobody is going to depend on that
+behavior. tctpgrp returns 0 on success, -1 with errno ENOTTY if fdtty is
+not a terminal, -1 with errno ESRCH if pid does not exist, -1 with errno
+EPERM if pid exists but is not a child/descendant, -1 with errno EBADF
+if fdtty is not open for reading.
+
+To implement tcnewpgrp() you need to set up a table (I recommend a
+chained hash table) of structures containing process group number and
+reference count. The reference count is the total number of processes
+and ttys with that process group. tcnewpgrp() can then search for a
+process group not in the table. The range of process group numbers is
+not important; a good choice for BSD systems is 32801-65000. However, it
+is important that there be more process groups available than the maximum
+possible number of ttys and pids in use at once.
+
+Whenever a process is created, the reference count for its process group
+(if that group is not 0) must be incremented; whenever a process dies,
+the reference count for its process group (if that group is not 0) must
+be decremented; whenever a process changes process groups (e.g., via
+settpgrp()), the reference counts for old and new groups must be set
+appropriately; and whenever a tty changes process groups (e.g., via
+tcnewpgrp() or tctpgrp()), the reference counts must also be set
+appropriately. That's it.
+
+A different implementation strategy has been suggested by John Carr: the
+system can simply assign group numbers in increasing order starting from
+boot time. If, for instance, a process group has 64 bits, and there are
+at most a billion process group manipulations per second, it will be
+more than 584 years before the numbers can repeat. Naturally, system
+administrators should keep a close eye on recently allocated process
+groups, and be prepared to bring the system down for maintenance as soon
+as there is any risk of repetition.
+
+These three process group manipulation calls do not allow any abuse. To
+set a terminal to someone else's (nonzero) process group with tctpgrp(),
+an attacker would need a child process already in the group. But to put
+a process into someone else's (nonzero) process group with settpgrp(),
+an attacker would already need access to a tty with that group! There's
+no way to break into this circle. tcnewpgrp() is useless for attacks
+since it does not let an attacker join an existing group. Hence the
+system is secure. Together with the basic job control features outlined
+in sections 2 through 6, this provides a complete, usable job control
+system.
+
+For comparison, BSD job control involves controlling ttys, and has six
+interface functions beyond the mechanisms mentioned in sections 2
+through 6: open() (of a tty), setpgrp(), getpgrp(), the TIOCGPGRP ioctl,
+the TIOCSPGRP ioctl, and the TIOCNOTTY ioctl. Controlling terminals
+affect the entire job control system and make everything harder to
+program and use.
+
+POSIX job control is even worse: it includes not only the entire
+complexity of the BSD interface, but it has ``sessions'' with effects
+even more pervasive than those of controlling terminals. (For instance,
+a process can only be stopped if its parent is in the *same* session but
+a *different* process group.)
+
+
+8. Implementing the new job control interface in a BSD system
+
+tcnewpgrp() requires kernel changes on any system; current systems do
+not recognize a range of process groups to be dynamically allocated to
+ttys. It also allows a style of job-control programming somewhat
+different from the usual BSD style. However, settpgrp() and tctpgrp()
+can be implemented as library routines under BSD. Here they are:
+
+   int settpgrp(fdtty)
+   int fdtty;
+   {
+    int pgrp = 0;
+    if (fdtty != -1)
+      if (ioctl(fdtty,TIOCGPGRP,&pgrp) == -1)
+        return -1;
+    return setpgrp(0,pgrp);
+   }
+
+   int tctpgrp(fdtty,pid)
+   int fdtty;
+   int pid;
+   {
+    int pgrp;
+    if ((pgrp = getpgrp(pid)) == -1)
+      return -1;
+    return ioctl(fdtty,TIOCSPGRP,&pgrp);
+   }
+
+Note that this interface doesn't interact with controlling ttys in any
+way. Unfortunately, controlling ttys sometimes force their own
+interactions, and a job control application which manipulates ttys (as
+opposed to a shell, which merely runs under a single tty) should still
+be aware of the old controlling tty rules. The same is true in far
+greater measure under POSIX---you simply cannot ignore sessions, because
+you will open up rather large security holes if you leave all processes
+in the same session. Put simply, the POSIX standard forces system code
+to manipulate sessions for its health.
+
+
+9. Programming common operations with the new job control interface
+
+Forking a pipeline in a job-control shell: The shell starts with
+tcnewpgrp(fdtty), so that the tty is in the new process group before
+there are even any children. (That's the basic difference between the
+BSD and POSIX models and this one.) It then forks each process in the
+pipeline. Each process does settpgrp(fdtty), thus joining the new
+process group, before it exec()s the appropriate program. Note that to
+avoid races the shell should block SIGCHLD while it's spawning children.
+
+Handling a stopped child process: When the shell sees that a pipeline
+has stopped or exited, it does tctpgrp(fdtty,getpid()) to set the tty to
+its own process group. Note that it has to ignore SIGTTOU during this
+operation. To resume the pipeline it does tctpgrp(fdtty,pid) where pid
+is any one of the child processes, then sends SIGCONT to the process
+group.
+
+Starting a process under a new tty: When, for instance, telnetd or
+init/getty or another program in process group 0 wants to grab a tty, it
+opens the tty and forks a child process. The child does tcnewpgrp(fdtty)
+to give the tty a real process group, then settpgrp(fdtty) to place
+itself into the foreground.
+
+Changing ttys: Despite what POSIX would have you believe with its
+session straitjacket rules, people do run programs all the time under a
+different tty from the shell. The most common example in BSD is probably
+the script program; other examples are emacs, screen, pty, mtty, atty.
+Fortunately, exactly the same procedure works as in the previous
+example.
+
+Dissociating a daemon: Note that dissociating from a tty is a
+controlling-terminal concept. However, most daemons do want to place
+themselves into process groups of their own, so that they are not
+affected by job-control signals. This can be handled in several ways,
+but by far the easiest is settpgrp(-1) to join process group 0. (Note
+that under BSD there is no reliable way to dissociate from a controlling
+tty---the TIOCEXCL ioctl can prevent dissociation. That is not the mark
+of a clean interface.)
+
+Forcing oneself into the foreground: Most programs which manipulate the
+tty, usually so that they can run in character mode, don't work
+correctly with job control. The usual sequence after startup is this:
+read tty modes; write new tty modes including noecho and cbreak. The
+problem is that the process could be in the background when it reads the
+tty modes---a different program, which itself changes the tty modes to
+something strange, could be in the foreground. This process will read
+the strange modes, then stop when it tries to set the modes. Later it is
+restarted and runs without trouble---but when it exits, it will
+``restore'' the tty to those strange modes it started with. To avoid
+this bug, processes which manipulate the tty should force themselves
+into the foreground before reading or writing anything. An easy way to
+do this is tctpgrp(getpid()), with the default SIGTTOU handler. Note
+that the program should also do this upon continuing after a stop---
+otherwise it might make the same mistake of reading modes before it
+knows it's in the foreground.
+
+
+10. Helpful extensions to the job control system
+
+There are several steps you can take which don't extend the job control
+interface but which do make job control programs more portable or easier
+to read.
+
+As noted above, BSD has a wait3() call instead of wait2(). It is called
+as follows:
+
+  #include <sys/wait.h>
+  #include <sys/time.h>
+  #include <sys/resource.h>
+
+  int wait3(status,options,rusage)
+  int *status;
+  int options;
+  struct rusage *rusage;
+
+If rusage is NULL, this is just like wait2(). <sys/time.h> can simply
+#include <time.h>. (Under BSD it defines several system time structures,
+like struct timeval.) <sys/resource.h> doesn't need to provide any
+information other than a definition of struct rusage. (Under BSD, if a
+child exits and the parent provides a non-NULL rusage pointer to
+wait3(), the structure is filled in with information about the resources
+used by the child [and its children, and so on]. For instance,
+ru_nsignals is the number of signals received. This is very open-ended
+and absolutely irrelevant to job control.) If you are adding job control
+to a system without it and want to provide the wait3() call, just define
+struct rusage { int dummy; }. While a job-control shell can make good
+use of resource information, most uses of wait3() really don't need the
+third argument. However, there are enough programs which include
+<sys/time.h> and <sys/resource.h> and use wait3() that it is worthwhile
+to provide the extra interface.
+
+Another extension is to define a ``union wait'' type in <sys/wait.h>
+with an ``int w_status'' member. At some point BSD left the beaten path
+and decided that wait() should use a union wait instead of an int to
+return status information. This decision is generally regarded as a
+mistake if only because it severely hampers portability, but there are
+quite a few programs which depend on it, and there's no harm in
+supporting it.
+
+More useful is to define a set of macros which extract information from
+a wait status. (Under BSD, union wait actually contains structure
+members which encode the same information. However, the macros are
+easier to use and support.) Here are the important ones:
+
+   #define WIFSTOPPED(s) (((s) & 0177) == 0177)
+   #define WIFEXITED(s) (!((s) & 0177))
+   #define WIFSIGNALED(s) (0176 > (unsigned) (((s) & 0177) - 1))
+   #define WSTOPSIG(s) ((s) >> 8) /* only defined if WIFSTOPPED */
+   #define WEXITSTATUS(s) ((s) >> 8) /* only defined if WIFEXITED */
+   #define WTERMSIG(s) ((s) & 0177) /* only defined if WIFSIGNALED */
+   #define WCOREDUMP(s) ((s) & 0200) /* only defined if WIFSIGNALED */
+
+On some 16-bit machines the >> 8 may have to be changed, or (s) may have
+to be cast to unsigned. These macros are meant to be applied to an int,
+not a union wait; most compilers will do the right thing anyway, but be
+careful.
+
+
+Acknowledgments
+
+Thanks to Chris Torek, Christos S. Zoulas, and David J. MacKenzie for
+their comments. Thanks also to John F. Haugh for a series of questions
+which pointed out that, somewhere in this paper, I should emphasize that
+an ``unused'' process group is one which doesn't appear in any t_pgrp or
+p_pgrp. (There, I said it.)
+
+
+References
+
+[1] D. J. Bernstein, ``A new, secure, extremely simple job control
+interface,'' article <18072.Jul1707.06.4191@kramden.acf.nyu.edu>,
+comp.unix.wizards, July 1991.

@@ -1,0 +1,47 @@
+.TH sessname 1
+.SH NAME
+sessname \- provide a more descriptive name for the current pty session
+.SH SYNOPSIS
+.B sessname
+[
+.B\-s\fIext
+] [
+.I name
+]
+.SH DESCRIPTION
+.B sessname
+adds
+.I name
+to the information listed by
+.B sesslist
+for the current
+.B pty
+session.
+
+.I name
+is in addition to the
+base name of the session,
+which is the last two characters of the
+pseudo-terminal filename.
+
+Without an argument,
+.B sessname
+prints the name of the current session.
+
+Normally
+.B sessname
+uses the session specified by environment variable PTY.
+Given
+.B\-s,
+it will use session
+.I ext
+instead.
+.SH DIAGNOSTICS
+Self-explanatory.
+.SH RESTRICTIONS
+.I name
+is limited to 100 characters.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+sesslist(1)

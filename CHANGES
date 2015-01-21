@@ -1,0 +1,73 @@
+2/9/92: pty 4.0.
+2/9/92: Fixed up documentation, hopefully for the last time.
+1/29/92: Changed INSTALL.c to report chown root for INSTALL root. Tnx IS.
+1/27/92: Added ABRT->IOT ifndef in sigdfl.c.
+1/27/92: Changed sigdfl.c to zero the sigvecs rather than setting sv_flags.
+1/16/92: pty 4.0, second gamma.
+1/13/92: Does it work on an Iris? Nobody knows. 
+1/13/92: Added IRIS_UGH_PTYS to ptyget.c. Tnx IRIS, I think.
+1/13/92: Changed fatal to warning for tctpgrp failure in ptyslave.c. Tnx IRIS.
+1/13/92: ifndef'ed SYSV for ut_host in ptylogs.c. Tnx IRIS.
+1/13/92: Added config/sysv.h to distribution. Tnx IRIS.
+1/13/92: Added PTYLIBS, noted its use in README. Tnx IRIS.
+1/13/92: Replaced CCOPTMZ with OPTMZ.
+1/13/92: Noted in CALLS that TTY_TERMIO seems to work. Tnx IRIS.
+1/13/92: Adapted tty_initmodes for TTY_TERMIO. Ugh, ugh. Tnx IRIS.
+1/13/92: Adapted tty_mungemodes for TTY_TERMIO. Ugh. Tnx IRIS.
+1/13/92: Adapted tty_modifymodes for TTY_TERMIO (poorly). Tnx IRIS.
+1/13/92: Adapted tty_getmodes and tty_setmodes for TTY_TERMIO. Tnx IRIS.
+1/13/92: In ptytty.c used ifdefs for FIONREAD and TIOCEXCL. Tnx IRIS.
+1/13/92: Adapted ptytty.h for TTY_TERMIO. Tnx IRIS.
+1/13/92: Added TTY_TERMIO option to config/ttyopts.h. Tnx IRIS.
+1/13/92: Gave in and made tty_copymodes do a struct copy.
+1/13/92: Fixed typo in SECURITY. Tnx KS.
+1/13/92: Fixed typo in pty-basic.1. Tnx KS.
+1/12/92: Replaced <sgtty.h> with <sys/ioctl.h> in ptytty.h. Tnx IRIS.
+1/12/92: Added chmod 700 for all shell scripts in Makefile.
+1/12/92: Removed <sys/timeb.h> from wall.c and write.c. Tnx IRIS.
+1/12/92: In separate effort got it working on an IRIS. See above.
+12/22/91: pty 4.0, first gamma! (Still have to integrate BSD 4.4 version.)
+12/22/91: Changed various things in the documentation.
+12/22/91: Fixed exit code reporting for, e.g., DIE_NOPTYS.
+12/22/91: Changed POSIX to POSIX_SILLINESS. See config/posix.h.
+12/20/91: Added CCOPTMZ in Makefile for radixsort.
+12/19/91: Added BLURB.
+12/19/91: Added TESTS.
+12/19/91: Cleaned up README.
+12/19/91: Added WTF, noted SunOS 4.0.3 forcefg bug in README.
+12/18/91: Fixed bug in sessmenu's sesslist parsing.
+12/17/91: Fixed up documentation a bit; referred to checkptys in README.
+12/16/91: Added CPP define to Makefile.
+12/15/91: Added -xi.
+12/15/91: Started machine list in Makefile.
+12/15/91: Added EWOULDBLOCK in ptysecure.c for Domain/OS.
+12/14/91: Added target-list target.
+12/14/91: Added lint target.
+12/13/91: Changed master so that it continues child on any reconnect. Tnx SS.
+11/24/91: Changed master to run only as effective uid.
+11/18/91: Added TERM, USR1, USR2 ignoring to master. Tnx SS.
+11/9/91: Added \fP in syntax sections in pty-opts.1, pty.1. Tnx SS.
+11/9/91: Added <sys/types.h> before <utmp.h> in {users,who}.c. Domain/OS idiocy.
+11/9/91: Fixed dependencies for CHECKCONF and INSTALL.
+11/3/91: Added proper .h dependencies in Makefile (finally).
+10/27/91: Added exit(0) at end of sesslist.c. Tnx SS.
+10/27/91: Fixed ptysecure.c---it didn't undo chmod for some setups. Tnx SS.
+10/27/91: Added make clean. Tnx SS.
+10/27/91: Added checkptys.8.
+10/27/91: Changed checkptys to be installed non-setuid.
+10/26/91: Added pty.1, pty-basic.1, pty-opts.1, sess.1, condom.1.
+10/26/91: Tossed old man pages.
+10/26/91: Added DIE_EXIST for ptysigler.c.
+10/26/91: Added DIE_ELSE for ptysigler.c.
+10/26/91: Fixed ptymain to die(SETMODES) in an impossible situation.
+10/26/91: Changed a few die() values in ptymain.c.
+10/25/91: Need to add *.h to Makefile...
+10/25/91: Removed last traces of old getopt schizophrenia.
+10/25/91: Changed *rotate to preserve modes of log files.
+10/25/91: Added sessnowinit, scnowinit.
+10/25/91: Added sessrotate, sclogrotate.
+10/25/91: Fixed off-by-one on remotelen.
+10/25/91: Changed wtmprotate to depend on config/wtmpfile.h properly.
+[log is not complete before this point]
+10/6/91: Added -xsS.
+9/30/91: pty 4.0, second beta.

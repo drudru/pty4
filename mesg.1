@@ -1,0 +1,50 @@
+.TH mesg 1
+.SH NAME
+mesg \- permit or deny messages
+.SH SYNOPSIS
+.B mesg
+[
+.B n
+] [
+.B y
+]
+.SH DESCRIPTION
+After
+.B mesg y,
+other users can
+use
+.B write(1)
+or
+.B talk(1)
+to send messages to your terminal.
+.B mesg n
+turns this off.
+.B mesg
+applies to your current terminal session;
+typically you'd put a
+.B mesg y
+into your
+.B \&.login,
+.B \&.cshrc,
+or
+.B \&.profile.
+
+.B mesg
+without an argument tells you your current
+messaging status.
+
+.B mesg
+requires its input to be your terminal session
+(or at least a session you own). All it really
+does is handle the group-write bit on the terminal.
+
+.B mesg
+only looks at the first letter of its first argument.
+.SH "EXIT VALUE"
+Without an argument,
+.I mesg
+exits with value 0 if messages are receivable,
+1 if not,
+2 upon error.
+.SH "SEE ALSO"
+write(1), talk(1)

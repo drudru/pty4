@@ -1,0 +1,170 @@
+pty uses a bunch of syscalls (42 at last count) and library routines.
+Calls marked with * are BSD-only or otherwise not available on all UNIX
+systems. Calls marked with + are widely available but have different
+behavior on different systems---behavior different enough that pty might
+not work.
+
+_exit: used in ptyerr.c for almost all exits. Note that pty does not use
+	stdio in any way.
+*accept: used in ptycomm.c`comm_accept, to accept a connection for the
+	master on a descriptor created by comm_read
+access: used with F_OK in ptyget.c to check if a pty bank (e.g., ttyq*)
+	exists
+*bind: used in ptycomm.c`comm_read to create the master's comm socket
+*bzero: used inside the system's FD_ZERO macro before select
+chdir: used once in the master and once in the sigler, both times in
+	ptymain.c, to switch permanently to PTYDIR.
+close: used throughout the program to get rid of a file descriptor.
+	Note that the return value from close is not checked---there's
+	absolutely no way pty could do anything about the descriptor in
+	case of an error, and it's far more important that the
+	descriptor be freed up than that NFS's perverted idea of UNIX
+	I/O be dealt with.
+*connect: used in ptycomm.c`comm_write to connect to a running master
+dup: used (1) in ptytty.c to try to find the controlling tty descriptor;
+	(2) in ptyslave.c to move the /dev/ttyxx descriptor to 0/1/2;
+	(3) in ptysecure.c to set up descriptors for /bin/ps
+*dup2: used in ptymisc.c to move a /dev/null descriptor around
+execve: used in ptysecure.c to invoke /bin/ps
+execvp: used in ptyslave.c to invoke the user's program, after setreuid
+*fchmod: used in ptysecure.c upon a slave tty descriptor
++fcntl: used with F_GETFL in ptymisc.c (and sigsched.c) to see if a
+	descriptor is open
+flock: used in ptymisc.c for generic locking routine (used on log files)
+fork: used in ptymain.c (twice) to create master and slave processes;
+	used in ptysecure.c to invoke /bin/ps for security check
+free: used in ralloc.c`rfree
+*fstat: used in ptysecure.c upon a slave tty descriptor
+*getdtablesize: used in slave under -E to close all open descriptors;
+	used in ptymaster.c`closeallbut (which is a royal kludge)
+*getpgrp: used in ptytty.c`force_fg to plug into TIOCSPGRP; used in
+	ptymaster.c`contchild in preparation for killpg
+getpid: used (1) in the master to fill in a sesslog structure; (2) in
+	ptytty.c`force_fg to plug into getpgrp; (3) in the signaller to
+	send a WINCH to itself after reconnect; (4) in the slave to set
+	its pgrp before exec; (5) in the slave to pass to tctpgrp; (6)
+	to set up numbers for random tty searching; (7) in the master,
+	when fdctrlr asks for its pid; (8) in sigdfl.c to send a signal
+	to itself; (9) in ptysecure.c for various purposes.
+*getpwnam: used only in username.c
+*getpwuid: used only in username.c
+*geteuid: used in ptysecure.c as a secure pseudo-tty owner
+getuid: used once in ptytty.c to initialize a uid variable
++ioctl: used in ptytty.c`ioc to control a tty descriptor; about two
+	dozen BSD-specific ioctls are used in ptytty.c
++kill: used (1) in the master to tell the child to continue after the
+	sigler says so; (2) in the sigler to tell itself to WINCH after
+	a reconnect; (3) in sigdfl.c to send a signal to itself.
+*killpg: used in ptymaster.c`contchild to continue the child's process
+	group if a straight kill() failed
+*listen: used in ptycomm.c to prepare the master's comm socket for
+	connections
+lseek: used in ptylogs.c, sessconnlog.c, and sesslog.c to place a record
+	at a particular spot in a log file
+malloc: used in ralloc.c`ralloc
++open: used (1) in ptyget.c with O_RDWR to open the master and slave
+	sides of a tty; (2) in ptylogs.c with O_RDWR, O_RDWR | O_APPEND,
+	and O_WRONLY | O_APPEND to open UTMP_FILE and WTMP_FILE; (3) in
+	ptymisc.c`forceopen upon /dev/null and /, to attempt to make
+	sure a descriptor is in use; (4) in ptyslave.c (twice) to open
+	/dev/tty with O_RDWR; (5) in ptytty.c`tty_getctrl to open
+	/dev/tty; (6) in sessconnlog.c and sesslog.c, with O_WRONLY |
+	O_CREAT and O_WRONLY | O_APPEND | O_CREAT (both mode 0644), to
+	open the sessnow, sesslog, scnow, and sclog system files for
+	update; (7) in ptysecure.c for various purposes.
+pipe: used (1) in ptymain.c to create pipes from the master to the
+	sigler and slave, so that there's no race between the master
+	setting up files and the sigler and slave starting; (2) in
+	ptysigler.c to create the master->sigler and sigler->master
+	pipes just before reconnect; (3) in ptysecure.c to create an
+	output pipe for /bin/ps.
+read
+*recvmsg: used in ptycomm.c to receive a descriptor from a UNIX-domain
+	socket. Note that recvmsg() is buggy in most BSD variants.
+*select: used (1) in ptymisc.c to pause briefly; (2) in sigsched.c to
+	check for usable descriptors.
+*sendmsg: used in ptycomm.c to send a descriptor down a UNIX-domain
+	socket. Note that sendmsg() is buggy in some BSD variants.
+*setpgrp: used in ptyslave.c to set up pgrp of slave
+*setreuid: used in ptyslave.c to make sure that slave runs as real uid;
+	used in ptysecure.c to make sure that /bin/ps runs as real uid;
+	used in ptymain.c to make sure that master is safe from user
+*sigblock: used in sigdfl.c and sigsched.c for various purposes
++signal: used in various spots to set handlers to SIG_{IGN,DFL}
+*sigsetmask: used in sigdfl.c and sigsched.c for various purposes
+*sigvec: used in sigdfl.c and sigsched.c to install signal handlers
+*socket: used in ptycomm.c`comm_{read,write} to set up comm socket
+strcpy: used in env.c for various purposes
+strlen: used throughout the code for various purposes
+strncmp: used in env.c and ptylogs.c
+strncpy: used in ptylogs.c, sessconnlog.c, sesslog.c
+time: used in ptymisc.c`now
+unlink: used only in ptycomm.c, upon a restricted pathname, to remove
+	an obsolete communications socket.
+*wait3: used in both master and sigler to wait for children (in the
+	latter case, simply to get rid of zombies), with NOHANG and
+	UNTRACED.
+write
+
+Note that pty also depends on environ and errno.
+
+The BSD-specific calls can be divided into several groups:
+
+A (pty allocation). Lots of vendors have added pseudo-ttys. In the BSD
+world, everyone simply copied what Berkeley did. Unfortunately, System V
+is graced with at least nine pseudo-tty allocation mechanisms; there are
+probably many more which I haven't seen. ptyget.c and ptysecure.c have
+to be completely rewritten for each new allocation design. On the other
+hand, there must be code which uses the ptys on that system, so this is
+certainly a doable job.
+
+B (select). select (and the associated FD_ZERO [using bzero], FD_ISSET,
+and FD_SET macros) is the foundation of the sigsched library, which
+literally runs everything. select also uses the largest part of pty's
+run time. It would be incredibly difficult to simulate select() with a
+less powerful mechanism, such as poll(). I would have to be exceedingly
+bored before attempting to port pty to a system without select().
+
+C (communication, including fd passing). accept, bind, connect, listen,
+recvmsg, sendmsg, and socket are isolated inside ptycomm.c. You can rip
+out the entire ptycomm.c mechanism and replace it with anything which
+(1) allows client-server connections with some security; (2) lets
+read(), write(), and select() work; (3) provides file descriptor
+passing; (4) allows a two-way connection on a single descriptor. Most
+streams facilities can handle (3). Note that if the file descriptor
+passing mechanism isn't as buggy as BSD's, you can get rid of
+ptymisc.c`gaargh.
+
+D (job control). getpgrp(), setpgrp(), the TIOCSPGRP and TIOCGPGRP
+ioctls, various signals, kill(,SIGCONT), killpg, and wait3 are all part
+of the BSD job control system. pty puts quite a bit of effort into
+handling job control, but not nearly as much as the previous version. I
+really can't guess what will go wrong if you simply rip out all the job
+control code and replace wait3() with an appropriate wait().
+
+E (tty handling). SIGWINCH and some two dozen tty ioctls all depend on
+the BSD tty system. SIGWINCH is easy to take care of---it's already
+#ifdef'ed for TTY_WINDOWS. (pty works under BSD 4.2, which doesn't have
+SIGWINCH.) The other tty ioctls are isolated inside ptytty.c, which I
+will probably rewrite for POSIX if and when somebody asks me to.
+January 1992 update: Okay, I've now implemented TTY_TERMIO. POSIX, for
+some absolutely idiotic reason, doesn't stick to the traditional header
+files, but TTY_TERMIO should be good enough for systems with System V
+tty handling.
+
+F (signal management). sigblock, sigsetmask, sigvec, and good old signal
+are all used throughout the pty code. POSIX can handle all of them, and
+I will do this port soon. System V cannot---it's very important that pty
+have reliable signal handling.
+
+G (easy stuff). dup2, fcntl(,F_GETFL,0), getdtablesize, getpwnam,
+getpwuid, fchmod, fstat, and setreuid are all reasonably easy to handle.
+dup2() can be written in terms of F_DUPFD for System V; in fact, pty
+only uses it in a situation where it should be a no-op! (See
+ptymisc`forceopen and the calls to forceopen in ptymain.c.) F_GETFL is,
+I believe, available on all modern UNIX-like systems. getdtablesize can
+be replaced by NOFILE. setreuid(uid,uid) is essentially equivalent to
+setuid(uid). getpwnam() and getpwuid() appear on most systems, and when
+they don't appear, they're easy enough to write (just scan /etc/passwd).
+fchmod and fstat can be replaced by chmod and stat---they're only used
+in situations where the pathname is known (viz., a slave tty).

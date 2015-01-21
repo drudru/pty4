@@ -1,0 +1,23 @@
+.TH users 1
+.SH NAME
+users \- show compact list of users who are logged on
+.SH SYNOPSIS
+.B users
+.SH DESCRIPTION
+.B users
+lists the login names of the users currently on the system in a compact,
+sorted,
+one-line format.
+.SH COMPATIBILITY
+Some versions of this program eliminate duplicates.
+Some eliminate duplicates incorrectly.
+This clone version prints each user exactly as many times
+as /etc/utmp lists.
+.SH FILES
+/etc/utmp
+.SH VERSION
+users version 2.0, 7/23/91.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.
+.SH "SEE ALSO"
+who(1)

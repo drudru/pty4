@@ -1,0 +1,55 @@
+.TH tscript 1
+.SH NAME
+tscript \- make tape of terminal session
+.SH SYNOPSIS
+.B tscript
+[
+.B \-a
+] [
+.I file ...
+]
+.SH DESCRIPTION
+.B tscript
+makes a tape of everything printed on your terminal.
+The tape is written to the named
+.I file\fRs,
+or appended to
+.I file
+if the
+.B \-a
+option is given.
+If you don't give a filename,
+the tape is saved in the file
+.I tapescript.
+
+The difference between
+.B tscript
+and
+.B script
+is that
+.B tscript
+records the time between characters.
+While
+.B script
+produces a human-readable record,
+the output of
+.B tscript
+must be played back with
+.B tplay.
+
+.B tscript
+runs whatever shell is in environment variable
+.I SHELL, default /bin/sh.
+The tape ends when the forked shell exits.
+
+Note that
+.B tscript
+requires both
+.B tplay
+and
+.B trecord
+to run.
+.SH "SEE ALSO"
+script(1),
+tplay(1),
+trecord(1)

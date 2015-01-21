@@ -1,0 +1,35 @@
+.TH sessmenu 1
+.SH NAME
+sessmenu \- give a menu of disconnected sessions
+.SH SYNOPSIS
+.B sessmenu
+.I program
+[
+.I arg ...
+]
+.SH DESCRIPTION
+Normally
+.B sessmenu
+runs
+.I program
+with the given arguments
+under a
+.B pty
+session.
+However, if you have one or more disconnected sessions,
+.B sessmenu
+lists them and shows what processes they have running.
+To reconnect to one of the sessions, type its name.
+Otherwise press return
+and
+.B sessmenu
+will start a new session as usual.
+
+.B sessmenu
+expects to be run from a network connection,
+on a tty in character mode,
+or on some raw device.
+It does all its own echoing.
+.SH "SEE ALSO"
+sess(1),
+sesslist(1)

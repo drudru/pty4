@@ -1,0 +1,44 @@
+.TH ttydfl 7
+.SH NAME
+ttydfl \- tty default settings
+.SH DESCRIPTION
+This manual page describes a standard set of
+tty settings,
+as respected by various programs including
+.B pty(1).
+
+.B ttydfl
+is in the old tty discipline.
+Its input and output speeds are EXTB.
+(Note that ttys connected directly to modems will typically have
+lower speeds.)
+
+Even and odd parity characters are supported;
+the high bit of an 8-bit character is stripped.
+DEC ctrl-Q processing is enabled.
+
+The erase character is delete (ASCII 127).
+The kill (erase line) character is ctrl-U (21).
+The interrupt character is ctrl-C (3).
+The quit character is ctrl-backslash (28).
+The start character is ctrl-Q (17).
+The stop character is ctrl-S (19).
+The end-of-file character is ctrl-D (4).
+The alternate end-of-file character, if any, is undefined.
+
+The suspend character is ctrl-Z (26).
+The delayed suspend character is ctrl-Y (25).
+(Note that Suns do not handle delayed suspend processing.)
+The reprint character is ctrl-R (18).
+The flush character is ctrl-O (15).
+The word-erase character is ctrl-W (23).
+The literal-next character is ctrl-V (22).
+
+On systems supporting auxiliary characters,
+the use-status key is ctrl-T (20),
+and the following status bits are set:
+load1, load5, load15, rawcpu, uptime, pgrp, childs,
+pcpu, state.
+.SH "SEE ALSO"
+pty(1),
+tty(4)

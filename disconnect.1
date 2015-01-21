@@ -1,0 +1,63 @@
+.TH disconnect 1
+.SH NAME
+disconnect \- disconnect current pty session
+.SH SYNOPSIS
+.B disconnect
+[
+.B\-s\fIext
+]
+.SH DESCRIPTION
+.B disconnect
+disconnects the current
+session,
+as if the connection
+had been hung up.
+Later you can use
+.B reconnect
+to get back to the session
+exactly where you left off.
+
+.B disconnect
+doesn't actually hang up the connection.
+If you have previously specified a
+.B reconnect
+for the connection,
+it will take effect immediately.
+
+You can switch rapidly from session
+.I xx
+to disconnected session
+.I zz
+by typing
+
+.EX
+reconnect zz;disconnect
+.EE
+
+Then
+.I xx
+and
+.I zz
+will be reversed,
+and you can switch back and forth without trouble.
+
+Normally
+.B disconnect
+disconnects the session specified by environment variable PTY.
+Given
+.B\-s\fIext,
+it will instead disconnect session
+.I ext.
+
+Note that, unlike the previous version of
+.B disconnect,
+this version guarantees that
+the session will be disconnected
+before it exits,
+unless it fails with an error message.
+.SH DIAGNOSTICS
+Self-explanatory.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+reconnect(1)

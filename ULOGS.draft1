@@ -1,0 +1,136 @@
+An analysis of user login records
+Daniel J. Bernstein
+draft 1
+10/5/91
+
+
+1. BSD login records
+
+On a BSD UNIX system, three files keep track of user logins. /etc/utmp
+records which users are on which lines, and when they logged in (or, for
+unused lines, logged out). To put it differently, utmp records the most
+recent start or stop time of the latest session on each line, and which
+user owns or owned that session. utmp also records the first 16
+characters of the remote hostname for any network connection.
+
+A parallel file /usr/adm/wtmp records all changes to utmp. The last wtmp
+entry for line xx is the current utmp entry for line xx. wtmp also uses
+special codes to indicate reboots and other unusual events. Typically
+wtmp is ``rotated'' every month: /usr/adm/wtmp is cleared, with a copy
+of the old information saved in /usr/adm/wtmp.0. Any previous wtmp.0 is
+saved in wtmp.1, and so on up to wtmp.7, which is thrown away.
+
+The third file is /usr/adm/lastlog, a flat database indexed by uid
+showing the most recent login entry for each user. lastlog and utmp have
+different formats but carry essentially the same information.
+
+
+2. Problems
+
+utmp provides only 16 characters for hostnames which are often much too
+long to fit. Once utmp (and wtmp and lastlog) truncate a name, any extra
+characters are lost permanently. Other information---the remote TCP
+port, the remote user as seen by rlogind or via RFC 931, etc.---isn't
+recorded at all. This makes it very difficult to trace network attacks.
+
+Furthermore, when users take advantage of session management (as
+described in []), utmp and wtmp lose even more information. A user may
+start a session at work, disconnect it without logging out, go home, and
+reconnect to the session from an entirely different location. It makes
+sense to talk about the start and stop time of the session, each connect
+and disconnect time, and each connect location. utmp and wtmp record
+none of this.
+
+Another problem with utmp is that it has never been clear whether utmp
+should record all connections (see []) or only interactive connections.
+Given that the programs which depend most heavily on utmp---to wit, user
+communication programs such as ``talk'' and ``write''---should only see
+interactive connections, it makes sense to omit windows and subshells,
+but then window information is lost.
+
+lastlog is mainly an optimization: login and finger both report the last
+login time for a particular user, and it would be wasteful to search
+through wtmp each time. But lastlog only keeps track of the very latest
+login, with no indication of any previous logins. It does not record
+logout time. Even worse, users and administrators cannot find out when
+their accounts are being attacked, because lastlog only records
+successful logins.
+
+
+3. Solutions
+
+One ``solution'' is to add more and more fields to utmp, recording more
+and more information. But this is the wrong strategy. Consider the
+parallel wtmp file. If utmp has (for instance) fields for the latest
+connection, then every time a user connects or disconnects, the basic
+session fields will be repeated in wtmp for no good reason. This wastes
+disk space but also indicates a fundamental failure in the model.
+
+The right solution is to give each file a specific purpose. utmp should
+only keep track of sessions; the host field should be removed. Complete
+connection information, including connect and disconnect times, remote
+host as both IP address and name, remote port, and remote user if known,
+can go into a separate file.
+
+To solve the problem of interactive versus non-interactive sessions,
+utmp should be split in two. The original utmp should be preserved for
+interactive, user-to-user communication. A separate file should record
+all sessions.
+
+lastlog can be improved in many ways, which we will not discuss in
+detail here. Various vendors (e.g., DEC) have already added features
+along these lines.
+
+
+4. pty user login files
+
+The author's pseudo-tty session manager, pty 4.0 ([]), maintains several
+user login files. utmp and wtmp record interactive sessions as above.
+The user can specify at session startup whether the session is
+interactive or not. For maximum flexibility, pty lets the user choose
+his host field in utmp. This way the user can configure his sessions to
+work properly with various utmp-processing programs. (The system
+administrator may disable these features.)
+
+All disconnectable sessions are recorded in sessnow, which has fields
+for username, uid, start/stop time, session master process id, and line.
+sesslog keeps a permanent record of changes to sessnow. Lines are
+specified by two characters (e.g., p0 for /dev/ttyp0).
+
+The relation between sessions and connections is recorded in scnow.
+scnow lists each session by line, the latest connection start/stop time,
+and complete remote host information. All changes to scnow are listed in
+sclog.
+
+Note that it makes sense to record connections separately, even those
+not connected to any particular session. The connection managers (getty,
+telnetd, etc.) might keep connnow and connlog files listing current
+connections. In the meantime pty maintains sessnow, sesslog, scnow,
+sclog, utmp, and wtmp. This finally makes a logical set of records for
+which user was using what session from where.
+
+Notice the clean distinction between connection information and session
+information. All session information is maintained by one program, pty.
+The utmp handling can be completely removed from init, getty, telnetd,
+login, rlogind, screen, xterm, sunview, and dozens of other programs.
+
+
+5. Security issues
+
+It is worth noting that Sun destroyed any credibility it might have had
+in its user login files by making /etc/utmp mode 666. This is what the
+author calls a SCINUP: Security Compromise Introduced in the Name of
+User Power. Sun found so many programs in its toolset that wanted to
+update utmp that it removed all utmp protection rather than implement a
+proper security mechanism. Years later, security experts (and system
+crackers) are still finding devastating holes caused by Sun's incredibly
+poor judgment.
+
+Needless to say, the author does not approve of unprotected login files.
+A single program---pty---can provide safe utmp service for all programs
+which need it.
+
+
+References
+
+XXX

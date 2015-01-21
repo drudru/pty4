@@ -1,0 +1,85 @@
+.TH sigdfl 3
+.SH NAME
+sigdfl \- invoke the default action for a signal
+.SH SYNTAX
+.B #include <sigdfl.h>
+
+int \fBsigdfl(\fIsig\fB)\fR;
+
+int \fBsigdfl_ttou()\fR;
+.br
+int \fBsigdfl_tstp()\fR;
+.br
+int \fBsigdfl_ttin()\fR;
+.br
+int \fBsigdfl_stop()\fR;
+
+int \fBsigdfl_abrt()\fR;
+
+int \fIsig\fP;
+.SH DESCRIPTION
+.B sigdfl(\fIsig\fB)
+has exactly the same effect as what happens 
+if the process isn't blocking
+.I sig,
+has SIG_DFL as the handler for
+.I sig,
+and then receives
+.I sig.
+In the case of stop signals
+(TSTP, TTIN, TTOU, STOP),
+.B sigdfl
+will absorb one or more CONT
+signals before returning.
+.B sigdfl
+is safe against
+multithreading.
+
+.B sigdfl
+has several interesting uses inside signal handlers.
+For instance, the handler for SEGV can clean up the tty
+and then call
+.B sigdfl(\fRSIGSEGV\fB).
+Unlike a simple
+.B abort(),
+this doesn't hide the reason for the core dump from the user.
+Similar comments apply to the stop signals.
+Note that processes handling a stop signal should
+take steps to ensure that they are back in the foreground
+after
+.B sigdfl
+returns.
+
+.B sigdfl
+returns 0 normally, -1 with
+errno
+set in case of various impossible errors.
+
+.B sigdfl_tstp()
+is the same as
+.B sigdfl(\fRSIGTSTP\fB).
+On systems not supporting
+SIGTSTP,
+.B sigdfl_tstp
+returns -1 with errno ENOTTY.
+Similar comments apply to
+.B sigdfl_stop(),
+.B sigdfl_ttin(),
+and
+.B sigdfl_ttou().
+.B sigdfl_abrt()
+is a professional version of
+.B abort();
+it will dump core with the ABRT signal,
+even if an ABRT handler is in place.
+
+SIG_DFL
+could, in principle, be implemented as
+.B sigdfl.
+.SH VERSION
+sigdfl 1.0, July 18, 1991.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.
+.SH "SEE ALSO"
+signal(3),
+abort(3)

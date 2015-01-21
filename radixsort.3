@@ -1,0 +1,148 @@
+.TH radixsort 3
+.SH NAME
+radixsort \- fast in-memory string sort
+.SH SYNTAX
+.B #include <radixsort.h>
+
+int \fBradixsort7(\fIbase,n,endchar,table,index,ualloc,ufree\fB)\fR
+
+int \fBradixsort5(\fIbase,n,endchar,table,index\fB)\fR
+
+int \fBradixsort4(\fIbase,n,endchar,table\fB)\fR
+
+int \fBradixsort3(\fIbase,n,endchar\fB)\fR
+
+unsigned char \fI**base\fR;
+.br
+int \fIn\fR;
+.br
+unsigned int \fIendchar\fR;
+.br
+unsigned char \fI*table\fR;
+.br
+int \fIindex\fR;
+.br
+char \fI*(*ualloc)()\fR;
+.br
+void \fI(*ufree)()\fR;
+.SH DESCRIPTION
+.B radixsort7
+is a modified radix sort.
+It sorts an array,
+.I base,
+of pointers to unsigned character strings.
+.I base
+contains
+.I n
+pointers.
+The strings are terminated by
+.I (unsigned char) endchar
+and may contain any other characters.
+
+.B radixsort7
+allocates some temporary workspace
+using
+.I ualloc
+and
+.I ufree,
+which must provide the same interface as
+.B malloc
+and
+.B free.
+.B radixsort5
+is the same as
+.B radixsort7
+but with the default
+.B malloc
+and
+.B free.
+
+.B radixsort7
+sorts the array
+by lexical ASCII order of the strings,
+with
+.I (unsigned char) endchar
+considered smaller than any other character.
+If
+.I index
+is greater than zero,
+the first
+.I index
+characters of each string are ignored,
+and sorting is based on the characters following.
+In other words, each pointer in
+.I base
+is shifted by
+.I index.
+This is useful for applications which want to store
+additional data in the first few bytes of each string.
+.B radixsort4
+is the same as
+.B radixsort5
+with
+.I index
+set to 0.
+
+.I table
+provides more flexibility in the sort order.
+If it
+is non-zero,
+it must point to an array of
+UCHAR_MAX + 1 (i.e., the character set size, typically 256)
+unsigned characters
+containing the sort weight of each possible character in
+the strings.
+.I endchar
+is ignored;
+instead,
+every character with sort weight 0
+in
+.I table
+is considered a terminator.
+Any number of bytes can have the same sort weight;
+if, for instance, the table gives a-z the same weights as A-Z,
+.B radixsort7
+will perform a case-insensitive sort.
+.B radixsort3
+is the same as
+.B radixsort4
+without a
+.I table.
+
+.B radixsort7
+is stable: if two strings are equal, their pointers will
+remain in the same order in the sorted array.
+.B radixsort7
+takes time
+at worst
+proportional to the total number of
+characters (including terminators) in the strings.
+This is within a constant factor of the
+information-theoretic optimum. In practice,
+.B radixsort7
+is extremely fast.
+
+.B radixsort7
+returns 0 normally,
+\-1 upon a memory allocation failure.
+
+.B radixsort(\fIbase,n,table,endchar\fB)
+is the same as
+.B radixsort4(\fIbase,n,endchar,table\fB).
+It is deprecated.
+It is included here only for compatibility with BSD 4.4.
+
+.B radixsort7
+and its variants
+are
+.B not
+safe to use inside signal handlers.
+.SH VERSION
+radixsort/DJB 3.0, 7/23/91.
+.SH AUTHORS
+Daniel J. Bernstein
+and
+Keith Bostic.
+.SH "SEE ALSO"
+sort(1),
+qsort(3)

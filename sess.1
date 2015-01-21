@@ -1,0 +1,67 @@
+.TH sess 1
+.SH NAME
+sess \- run a program under a disconnectable pty session
+.SH SYNOPSIS
+.B sess
+.I program
+.B [
+.I arg ...
+.B ]
+.SH DESCRIPTION
+.B sess,
+which is really just
+.B pty -s,
+runs a program under a pseudo-terminal
+session that can be easily disconnected and reconnected.
+The session can even be reconnected into the middle of a pipe.
+
+See
+.B pty(1),
+.B pty-basic(1),
+and
+.B pty-opts(1)
+for a description of
+.B pty
+and its options.
+
+.B sess
+enters the user into
+/etc/utmp by default;
+this can be turned off with
+.B\-xU.
+
+When
+.B sess
+receives a HUP signal,
+i.e., when the connection is manually hung up,
+it disconnects
+.I program
+from the outside world
+and waits for a
+.B reconnect.
+You can manually disconnect a session with
+.B disconnect.
+
+Sessions are named by
+their pseudo-terminal extension:
+for example,
+a session under /dev/ttyp5
+has name p5.
+You can use
+.B sessname
+to give them more descriptive names,
+printed by
+.B sesslist.
+
+See
+``An introduction to session management''
+for a more complete description of the
+session manager interface.
+.SH "SEE ALSO"
+pty(1),
+condom(1),
+disconnect(1),
+reconnect(1),
+sessname(1),
+sesskill(1),
+sesslist(1)

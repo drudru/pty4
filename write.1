@@ -1,0 +1,88 @@
+.TH write 1
+.SH NAME
+write \- write to another user
+.SH SYNOPSIS
+.B write
+.I user
+[
+.I ttyname
+]
+.SH DESCRIPTION
+.B write
+copies lines from your terminal to that of
+another user.
+This clone version
+starts and (if you don't kill the process)
+ends your message with identifying lines.
+It also
+precedes each line with your username.
+
+If you want to write to a user who is logged in more than once,
+you can
+choose a particular terminal with
+.I ttyname.
+(This misfeature is deprecated.)
+Otherwise
+.B write
+will choose a terminal for you.
+
+The other user can use
+.B mesg
+to allow or deny
+.B write
+permission.
+In many recent versions of
+.B write,
+you cannot write to a user unless you are also allowing messages.
+Unfortunately, this adds absolutely no security, because you can
+turn messages right back off after starting
+.B write.
+This clone version exhibits the right behavior:
+it checks
+.B mesg
+permission on the other end
+before writing each line.
+
+This version of
+.B write
+does not
+allow shell escapes.
+
+There are many popular ways of using
+.B write
+(perhaps the most common being to
+use
+.B talk
+instead).
+Typically each user ends each series of lines
+with a distinctive signal, such as
+``ga'' (go ahead),
+so that the other user can type without
+worrying about messed-up output.
+The number of abbreviations used in
+screen conversation is immense.
+See
+.B talkacros(7)
+for further information.
+
+This clone version of
+.B write
+uses the standard input,
+rather than the standard error,
+to determine your tty.
+
+.B write
+displays control characters in a printable form.
+.SH RESTRICTIONS
+Lines longer than 500 characters
+will be split in two.
+
+.B write
+sleeps for a second after sending each line.
+This restriction means that you can't
+flood someone else's screen with a large text.
+.SH "SEE ALSO"
+mesg(1),
+who(1),
+mail(1),
+talkacros(7)

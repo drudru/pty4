@@ -1,0 +1,45 @@
+.TH sesskill 1
+.SH NAME
+sesskill \- kill current pty session
+.SH SYNOPSIS
+.B sesskill
+[
+.B\-ym
+] [
+.B\-s\fIext
+]
+.SH DESCRIPTION
+.B sesskill
+kills the current session.
+.B pty
+will exit immediately,
+throwing away any final output,
+and any process running under the
+pseudo-tty will receive a HUP signal.
+
+Normally
+.B sesskill
+kills the session specified by environment variable PTY.
+Given
+.B\-s\fIext,
+it will instead kill session
+.I ext.
+
+Note that, unlike the previous version of
+.B sesskill,
+this version can be applied
+to a connected session, a session
+where the slave process is still running,
+and even a non-session running under
+.B pty.
+It is very destructive.
+It will, in fact, not take effect unless you specify
+.B\-y.
+It will not take effect for the current session unless
+you specify
+.B\-m.
+.SH DIAGNOSTICS
+Self-explanatory.
+.SH "SEE ALSO"
+pty(1),
+sess(1)

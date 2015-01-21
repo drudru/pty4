@@ -1,0 +1,59 @@
+.TH sesswho 1
+.SH NAME
+sesswho \- list all pty sessions on the system
+.SH SYNOPSIS
+.B sesswho
+[
+.B\-rRlL
+] [
+.B\-f\fIfile
+]
+.SH DESCRIPTION
+.B sesswho
+lists all
+.B pty
+sessions on the system,
+one per line,
+with owners and master process ids.
+
+Normally
+.B sesswho
+uses the current session log,
+typically /usr/adm/sessnow.
+Under the
+.B\-f\fIfile
+option
+it will use
+.I file
+instead.
+
+The
+.B\-r
+option
+tells
+.B sesswho
+to list the lines in reverse order.
+This is most commonly used with
+.B\-f.
+.B\-R
+is the default.
+
+Given the
+.B\-l
+option,
+.B sesswho
+also shows
+terminal lines without active
+.B pty
+sessions.
+This shows when those sessions terminated.
+.B\-L
+is the default.
+
+The system administrator may disable or restrict use of
+.B sesswho.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+sesswhere(1),
+sesslist(1)

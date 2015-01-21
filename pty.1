@@ -1,0 +1,316 @@
+.TH pty 1
+.SH NAME
+pty \- run a program under a pseudo-terminal session
+.SH SYNTAX
+pty
+[
+\fB\-qQve3EdDjJsStTrR0\fI\fP
+] [
+\fB\-h\fIhost\fP
+] [
+\fB\-O\fIremote\fP
+] [
+\fB\-p[cCdDeEnNrRsS780]\fI\fP
+] [
+\fB\-x[cCeEfFrRsSuUwWxX]\fI\fP
+] [
+\fB\-ACHUVW\fI\fP
+]
+program
+[
+arg ...
+]
+.SH DESCRIPTION
+.B pty
+detaches itself from its original
+terminal,
+allocates a new pseudo-terminal session,
+and runs
+.I program
+on that pseudo-terminal
+with any given arguments.
+.B pty
+lets you easily disconnect from and reconnect to
+sessions;
+it has over fifty options for precise control,
+and is meant to act as the sole interface
+between pseudo-terminals and the rest of the system.
+
+.B pty
+transmits I/O and job control transparently,
+so that
+(for instance)
+.B pty vi
+appears to the user to be the same as
+.B vi,
+but in fact
+.B pty
+is much more flexible.
+.B pty vi
+can be redirected, for example,
+while a simple
+.B vi
+cannot.
+.B pty
+has several other uses, as described below.
+
+There are a few very common invocations of
+.B pty.
+The most common is just
+.B pty \fIprogram,
+with no options.
+As described in the
+.B pty-basic
+man page,
+this can be redirected or placed inside a pipeline,
+and
+.I program
+will behave as if it hadn't been redirected at all.
+.B pty \-s \fIprogram
+sets up a disconnectable session,
+as described further in
+the
+.B sess(1)
+man page.
+A disconnectable session will survive modem hangups,
+network glitches, etc. It also
+lets the user disconnect his session at work
+and reconnect later at home without killing
+his jobs in progress.
+.B pty \-0 \fIprogram
+isolates the rest of the world from
+.I program
+in several ways;
+it is described further in
+the
+.B condom(1)
+man page.
+
+The two next most commonly used options
+are 
+.B\-d,
+if
+.B pty
+is started without a controlling terminal;
+and
+.B\-xu,
+which makes an entry in
+/etc/utmp.
+.B pty \-d
+is especially useful inside
+.B rsh,
+where interactive programs normally fail for lack of a tty.
+
+As noted above,
+some programs (such as
+.B vi)
+don't like taking input or output
+from a pipe. Under
+.B pty,
+they won't notice a thing.
+Other programs,
+based on the standard I/O library,
+buffer as much output as possible
+if they're in a pipe.
+Under
+.B pty,
+they'll buffer only a line of output as usual.
+.B pty
+is very careful to restore terminal modes upon
+stopping or exiting;
+a careless
+.I program
+is shielded from your terminal.
+Otherwise,
+.B pty \fIprogram
+``feels'' just like
+.I program.
+
+.B pty
+sets file descriptor 0 to input from the
+pseudo-terminal, 1 and 2 to output.
+.B pty
+also supports the ``3 is /dev/tty'' convention:
+it sets up file descriptor 3 for input from, output to,
+and terminal commands for
+/dev/tty
+(not the original tty, but the pseudo tty).
+
+.B pty
+has many options,
+as documented in the
+.B pty-opts
+man page.
+.SH DIAGNOSTICS
+.TP
+various usage messages
+Exit 1.
+.TP
+.I cannot find controlling tty; try -d?
+.B pty
+is unable to find its current terminal to copy tty modes from.
+(This version of
+.B pty
+defines its controlling tty to be the first one of
+the following which is a tty device:
+descriptor 3, /dev/tty, descriptor 0, descriptor 1, descriptor 2.)
+You probably want to use
+.B\-d
+to tell
+.B pty
+to make a pseudo-terminal from scratch.
+Exit 2.
+.TP
+.I cannot get modes of original tty
+This shouldn't happen.
+Exit 3.
+.TP
+.I cannot set modes of original tty
+This shouldn't happen.
+Exit 4.
+.TP
+.I no ptys available
+Self-explanatory.
+Exit 5.
+.TP
+.I cannot set up open descriptors
+There is a serious problem with your pseudo-terminal setup.
+Report this error to your system administrator.
+Exit 6.
+.TP
+.I cannot fork
+.I pty
+has run out of processes.
+Exit 7.
+.TP
+.I signaller cannot change to session directory
+Probably the session directory has not been created with
+the appropriate modes, or
+.B pty
+is not running with sufficient privilege.
+Note that this error is often duplicated or triplicated,
+as the various pieces of
+.B pty
+depend on the session directory for communication,
+including communication of this error!
+Exit 8.
+.TP
+.I out of memory
+Self-explanatory.
+Exit 9.
+.TP
+.I cannot create internal pipe
+.TP
+.I cannot setsid
+These errors will not happen in my lifetime.
+If they do, it's probably because of quantum bit flips.
+Exit 10.
+.TP
+.I signaller having trouble
+.TP
+.I signaller cannot read success code from master
+Something has gone very wrong with
+the communications paths inside
+.B pty.
+This should not happen.
+Exit 11.
+.TP
+.I session already connected somewhere else
+This error can happen upon session reconnect
+and, in that case, is self-explanatory.
+Exit 16.
+.TP
+.I cannot find session; does it exist?
+Self-explanatory, again upon session reconnect.
+Exit 17.
+.TP
+various \fIcannot\fR messages
+If something is slightly wrong with the user-supplied environment
+(for instance,
+if
+.I program
+does not exist)
+.B pty
+will print an error but
+will exit 0,
+as if it had successfully executed a shell script
+which then detected the error.
+This is consistent with the way that
+.B pty
+does not report the exit status of
+.I program.
+.TP
+.I warning: cannot write utmp entry
+Self-explanatory.
+.TP
+.I warning: cannot dissociate from current tty
+.B pty
+is unable to submit to the kernel's controlling tty demands.
+If, for example, the tty has
+TIOCEXCL mode set, then there is absolutely no reliable
+way for a program to dissociate itself from that tty.
+This may or may not affect
+.I program.
+.TP
+.I warning: no secure ptys available
+.B pty
+4.0
+comes with security features which,
+on a standard BSD 4.3-derived system,
+guarantee that any
+pseudo-tty
+used will be completely clean.
+This message means that no clean ptys are available.
+(There is an option which will force
+.B pty
+to exit in this case.)
+.TP
+.I warning: cannot set exclusive use on pseudo-tty
+Self-explanatory.
+.SH BUGS
+None known, but they're probably hiding somewhere.
+.SH "MANDATORY SERMON"
+UNIX programs have traditionally allocated pseudo-terminals
+with the same code copied from one application to the next.
+Maintaining or adding features to the pseudo-terminal system
+is nearly impossible,
+as so many programs depend on its current internals.
+Porting a program to a new system often means
+rewriting its pseudo-terminal allocation code.
+And the reliability and security of the entire system are
+jeapordized by
+this decentralized management
+of one of the UNIX system's most important resources.
+
+.B pty
+solves these problems.
+If programmers use
+.B pty
+instead of writing equivalent code in each program,
+then everything becomes much more portable and bug-free.
+The only program that need be changed for a different
+system with a different pseudo-terminal mechanism
+is
+.B pty.
+(This is called ``modularity,''
+``interface design,''
+or ``outside-in programming.'')
+.B pty
+is small enough to be reasonbly reliable,
+and it solves the security problems that plague
+BSD pseudo-ttys.
+It is the author's opinion that
+.B pty
+is the ``right'' interface between pseudo-ttys
+and the rest of the system.
+.SH VERSION
+pty version 4.0, 2/9/92.
+.SH AUTHOR
+Copyright 1992, Daniel J. Bernstein.
+.SH "SEE ALSO"
+pty-basic(1),
+pty-opts(1),
+sess(1),
+condom(1),
+pty(4),
+tty(4)

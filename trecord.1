@@ -1,0 +1,45 @@
+.TH trecord 1
+.SH NAME
+trecord \- tape-record input
+.SH SYNTAX
+.B trecord
+.SH DESCRIPTION
+.B trecord
+records its input, including timing information,
+and sends the resulting
+.I tape
+to its output.
+The tape can be played with
+.B tplay.
+
+A useful idiom is
+.PP
+.EX
+trecord | tee tapefile | tplay
+.EE
+.PP
+which copies its input to its output,
+meanwhile tape-recording the input in
+.I tapefile.
+
+The (machine-independent)
+.I tape
+format is any number of
+7-byte records separated by variable-length records.
+Each 7-byte record consists of three bytes giving a microsecond
+delay, low byte first, and four bytes giving a second delay, low
+byte first. A variable-length record of length
+.I n + 2
+has first byte
+.I n
+and contains actual data
+in the remaining
+.I n + 1
+bytes.
+.SH VERSION
+trecord version 1.0, 7/27/91.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.
+.SH "SEE ALSO"
+tplay(1),
+tee(1)

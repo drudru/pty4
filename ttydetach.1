@@ -1,0 +1,22 @@
+.TH ttydetach 1
+.SH NAME
+ttydetach \- run program without a controlling tty
+.SH SYNOPSIS
+.B ttydetach
+.I program
+[
+.I arg  ...
+]
+.SH DESCRIPTION
+.B ttydetach
+removes its association with the current tty,
+removes any PTY variable from the environment,
+and
+runs
+.I program
+with the given arguments.
+It may close or arbitrarily mangle
+open tty descriptors.
+.SH "SEE ALSO"
+pty(1),
+tty(4)

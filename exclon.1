@@ -1,0 +1,37 @@
+.TH excl 1
+.SH NAME
+exclon, excloff \- reserve tty for exclusive use
+.SH SYNOPSIS
+.B exclon
+.PP
+.B excloff
+.SH DESCRIPTION
+The
+.B exclon
+command reserves your terminal for exclusive use with
+the TIOCEXCL ioctl.
+This means that any attempt to open your terminal,
+including through /dev/tty,
+will fail.
+
+.B write
+is affected by
+.B exclon,
+but
+.B talk
+is not.
+This feature has made
+.B exclon
+a popular tool for people who prefer
+the
+.B talk
+style of communication.
+
+To unreserve your terminal, use
+.B excloff.
+It is polite to do this at the end of a session,
+though it is automatic when the terminal is closed.
+.SH AUTHOR
+I hesitate to claim authorship for a one-statement program.
+.SH "SEE ALSO"
+talk(1), stty(1), ioctl(2), tty(4)

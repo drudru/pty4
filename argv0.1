@@ -1,0 +1,45 @@
+.TH argv0 1
+.SH NAME
+argv0 \- run a program with a specified zeroth argument
+.SH SYNOPSIS
+.B argv0
+.I realname
+.I program
+[
+.I arg ...
+]
+.SH DESCRIPTION
+.B argv0
+runs
+the program stored as
+.I realname
+on disk,
+with the given
+arguments.
+It sets the zeroth argument of
+the program to
+.I program.
+.SH EXAMPLES
+.EX
+argv0 /bin/csh -bin/csh
+.EE
+
+Run the shell with a hyphen as its first name.
+This is how
+.B login(1)
+runs shells;
+.B csh
+will think it is a login shell
+and behave accordingly.
+
+.EX
+argv0 sendmail mailq
+.EE
+
+Run
+.B sendmail
+with a zeroth argument of
+.B mailq.
+.SH "SEE ALSO"
+execve(2),
+execvp(3)

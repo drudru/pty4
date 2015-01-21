@@ -1,0 +1,98 @@
+pty version 4.0, February 9, 1992.
+Copyright (c) 1992, Daniel J. Bernstein.
+All rights reserved.
+
+0. Read WTF if you want to know what all these files are for.
+1. Run SYSCONF. Check the bottom of README for any notes relevant to
+   your system.
+2. Make and run CHECKCONF. Edit config/* if necessary. If you don't have
+   privileges, make sure to change config/ptybin.h, config/ptydir.h, and
+   config/sess*.h. If you make any changes to config/*.h, you may want
+   to make and run CHECKCONF again. (If you don't have privileges, you
+   may also want to change flagxonlysecure = 0 to flagxonlysecure = -1
+   in ptymain.c line 36; this will eliminate a warning message each time
+   you use pty.)
+3. Make.
+4. Make INSTALL. (This doesn't actually install pty; it only makes the
+   INSTALL program, which you run in step 7.)
+5. If you have privileges, and you don't have a tty group (group 4),
+   make one.
+6. If you have privileges, and you want to run pty as its own uid rather
+   than root, make a pty uid.
+7. As root, run INSTALL, or ``INSTALL root'' if pty should run as root.
+   If you don't have privileges, run INSTALL anyway, and don't worry
+   about the error messages. Tricks: yes skip | ./INSTALL to see all the
+   steps of installation without executing any; yes ok | ./INSTALL to do
+   complete installation without having to confirm each step.
+8. Change /dev/tty* to be owned by pty if (1) pty isn't running as root
+   but (2) you still want to take advantage of pty's security features.
+   (If you want, you can chown only some of the ttys---tty[t-z]*, say.
+   Then pty will stick to those. In this case you should probably edit
+   config/ptyext.h to match.) Also change /dev/pty* to be owner pty and
+   mode 0600 if you want to prevent denial of service attacks; keep in
+   mind that this will stop valid non-root programs from opening ttys,
+   and that it will not close the dozens of other denial of service
+   attacks on your machine. (You may want to chmod and chown only a few
+   of the ptys, to keep them free for pty just in case.)
+9. If you want, invoke wtmprotate, sessrotate, or sclogrotate from your
+   daily, weekly, or monthly cron scripts. (wtmprotate may already be
+   handled by your vendor's scripts.) Also invoke utmpinit, sessnowinit,
+   and scnowinit from /etc/rc.local. Don't worry about these if you
+   don't have privileges.
+10. Run checkptys. If you want, arrange to have checkptys run
+    periodically by cron.
+11. If you want to make sure that pty works, look through TESTS and see
+    whether your setup works the same way.
+12. Fill out FORMLETTER and send it to me.
+
+Thanks to Scott Schwartz for his extensive comments; Paul Graham for
+utmpinit and for bug reports; Eliot Moss for all his work with pty 3.0,
+much of which inspired changes in pty 4.0; Maarten Litmaath for mtty;
+Seth Robertson for all his help; Keith Waclena for some incisive
+comments on pty 3.0's configuration scripts; Larry McVoy for admitting
+he was wrong about POSIX; Kartik Subbarao and Icarus Sparry for testing;
+and the cast of thousands for feature requests and suggestions. Thanks
+also to Dave Curry for checking pty's security.
+
+Probably the best documentation to start with is SESS.draft2. Then try
+pty-basic.1, then pty.1, then pty-opts.1. pty can do a lot of stuff---
+don't expect to absorb it all at once.
+
+pty is known to work in at least one configuration on each of the
+following machines:
+
+  Sun 4/280, SunOS 4.0.3
+    note that because of an OS bug (fixed in SunOS 4.1), pty -t will
+    fail from non-job-control shells (like sh) unless pty runs as root
+  Sun 4/490, SunOS 4.1.1
+    tested by KS
+  Sun 3/160, SunOS 4.1.1
+    thanks to Seth Robertson
+  Sun 3/50, SunOS 4.1.1
+  Sun SLC, SunOS 4.1.1
+    tested by IS
+  VAX 8600, BSD 4.3+NFS (Mt. Xinu)
+  DECStation 5400, Ultrix 4.1 (Rev. 52)
+    must add -YPOSIX -DPOSIX to CC in Makefile
+  DECStation 5820, Ultrix 4.1 (Rev. 200)
+    must add -YPOSIX -DPOSIX to CC in Makefile
+
+Other notes for the future:
+
+  Convex UNIX 9.0
+    must add -pcc -DPASS8=0 -DEXTB=15 to CC in Makefile; fd passing has
+    a very weird bug, need to look at it in depth
+  BSD 4.4
+    seems to work with the new fd passing system, but the machine
+    crashes; various CSRG/BSD folks are trying to find the kernel bug
+  SVR4
+    three people working on the port
+  AIX
+    two people working on the port
+  IRIS (which?)
+    must add -D_BSD_COMPAT -DIRIS_UGH_PTYS to CC in Makefile; must add
+    -lbsd to PTYLIBS in Makefile; must define TTY_TERMIO in
+    config/ttyopts.h; must define SYSV in config/sysv.h
+
+``Bizarre uses for pty... My favorite is: pty -0 jive | pty fn. Fn is the
+client for a networked chat system. The result is a killer. :-)'' ---Sean Casey

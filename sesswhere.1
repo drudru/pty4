@@ -1,0 +1,69 @@
+.TH sesswhere 1
+.SH NAME
+sesswhere \- list connections to pty sessions on the system
+.SH SYNOPSIS
+.B sesswhere
+[
+.B\-rRlL
+] [
+.B\-f\fIfile
+]
+.SH DESCRIPTION
+.B sesswhere
+lists all
+.B pty
+sessions on the system,
+one per line,
+including the network addresses they are connected to.
+
+Normally
+.B sesswhere
+uses the current session-connection log,
+typically /usr/adm/scnow.
+Under the
+.B\-f\fIfile
+option
+it will use
+.I file
+instead.
+
+The
+.B\-r
+option
+tells
+.B sesswhere
+to list the lines in reverse order.
+This is most commonly used with
+.B\-f.
+.B\-R
+is the default.
+
+Given the
+.B\-l
+option,
+.B sesswhere
+also shows
+terminal lines without active
+.B pty
+sessions.
+.B\-L
+is the default.
+
+Note that, in the default configuration, the owner
+of a
+.B pty
+session can control the information reported
+by
+.B sesswhere,
+so the output should not be used for security analysis.
+.B sesswhere
+will always
+print control characters visibly.
+
+The system administrator may disable or restrict use of
+.B sesswhere.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+sesswho(1),
+sesslist(1)

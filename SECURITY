@@ -1,0 +1,97 @@
+    Mode 666 files are always dangerous---they let anyone read or
+    write anything, almost undetectably. ttys are particularly
+    dangerous because the data read from them controls practically
+    all user processes, and because the data written to them
+    controls these weird things called ``humans'' sitting on the
+    other side of the screen.                                ---me
+
+An attacker can maintain access to a tty in several ways: (M) having the
+master side (say /dev/ptyp6) open; (S) having the slave side (that's
+/dev/ttyp6) open; (T) having /dev/tty open and somehow referring to the
+tty; (C) having controlling tty p6. To see whether a pseudo-tty is
+secure, pty must test for each of these forms of access.
+
+The system must provide several assurances. (1) To gain M, a process
+must open /dev/ptyp6 (or receive the descriptor from another process
+with M). (2) If any process has M then no process can open /dev/ptyp6.
+(3) To gain S, a process must open /dev/ttyp6 (or receive the descriptor
+from another process with S), obeying any protections set up on
+/dev/ttyp6. (4) To gain T, a process must open /dev/tty while it has C
+(or receive the descriptor from another process with T). (5) To gain C,
+a process must already have M or S, or be forked from another process
+with C, or must open /dev/ttyp6. (6) If a process reads from M, the read
+will return 0 (or -1 with errno EIO) if and only if no process has S or
+T.
+
+pty starts by opening /dev/ptyp6. It keeps /dev/ptyp6 open and never
+passes it to another process, so no other process will ever have M.
+pty then makes sure that /dev/ttyp6 is owned by its effective uid, and
+changes its mode to 0200. Unless it can do this, there is absolutely no
+chance of security, and pty won't even try the more powerful tests.
+
+If the chmod succeeds, no unprivileged process will be able to open
+/dev/ttyp6. pty then closes any descriptors it had open to /dev/ttyp6,
+and reads (in non-blocking mode) from /dev/ptyp6. It calls the pty
+insecure if the read returns anything but 0 or -1/EIO. Otherwise, it
+knows that at some point in time, no process had S, T, or M (except
+itself). It is an easy consequence of the facts stated so far that no
+process will ever have or acquire S or M until pty gives up M, changes
+the permissions on /dev/ttyp6, or otherwise gives away the show.
+
+This level of security is where pty 3.0, expect, and Sun's patched
+versions of SunOS 4.1.1 telnetd/rlogind stop. The problem is that some
+processes could still have C and thus acquire T. How would you test
+whether there are any processes with a certain controlling tty? I've
+published two comprehensive solutions up to now: one based on
+eliminating C access entirely, one based on using my pff program to look
+for SCM access all at once. But there's a simpler (albeit somewhat less
+robust and somewhat slower) solution. pty 4.0 simply invokes /bin/ps
+cgaxtp6 and parses the output, looking for process IDs other than itself
+and that of ps. (It actually counts newlines in the output and error of
+ps. If there is some problem invoking ps, there will be zero newlines.
+If ps starts and prints any processes with pids other than that of pty
+and ps itself, there will be more than one newline. This is safe against
+strange process names and poor ps formatting, but it does require the
+pids of pty and ps to be positive integers which fit into an int.) On a
+Sun, for instance, this extra test takes 0.3 seconds on pty startup.
+Note that pty invokes /bin/ps with only the privileges of its real uid.
+
+This isn't as robust as I'd like because a process could conceivably
+fork, exit in the parent, and have ps miss both processes without even
+printing an error message. If it works, though, it guarantees that at
+some point in time, no process (other than pty and ps) had S, M, or C
+access, and since no process can gain S or M, no process can gain C
+either.
+
+We're not done yet. Some process might have picked up T access from C
+access, then shed C before ps detected it. (I have a test program which
+can do this about one time out of twenty; this isn't just a theoretical
+concern.) Fortunately, pty can just repeat its first test, detecting any
+S or T access. If read() returns 0 or -1/EIO, all S, T, C, and M access
+outside of pty is (I believe) completely gone. (pty then chmods and
+chowns the tty so that standard tools work.)
+
+In retrospect, I don't really like this solution. It's actually rather
+portable (given BSD-flavor /bin/ps, that is), but it adds a noticeable
+delay at pty startup. I agree with Steve Bellovin that it makes much
+more sense to leave a pseudo-tty around (and accounted to the user!)
+until the user has closed all descriptors to it. This puts the delay in
+the background at the end of a pty session, rather than in the
+foreground at the beginning.
+
+Life would have been much simpler if there had been a pseudotty() system
+call, say pseudotty(fd) int fd[4], which allocated a new tty (just like
+a pipe!) and returned master-read master-write slave-read slave-write
+descriptors. This would also have solved any problems pseudo-ttys have
+with EOF. Even without such a radical change, there's no reason for C or
+T access to exist; why can't the current tty be listed in an environment
+variable, like TTY=/dev/ttyp6? /dev/tty, controlling ttys, and POSIX
+sessions hurt security and make tty-manipulating programs harder to
+write. I can't say exactly what the UNIX philosophy is, but that sure
+ain't it.
+
+Anyway, pty 4.0 works. It fits into current systems and closes every tty
+security hole I know. Now I'll put my money where my mouth is. I will
+pay $100.00 to the first person to demonstrate that pty 4.0's security
+can be defeated. To find out exactly what is required to claim this
+prize, send me e-mail.

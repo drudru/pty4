@@ -1,0 +1,157 @@
+.TH pty-basic 1
+.SH NAME
+pty-basic \- run a program under a pseudo-terminal session
+.SH SYNTAX
+pty
+.I program
+[
+.I arg ...
+]
+.SH DESCRIPTION
+This man page describes the effects of
+.B pty
+without any options.
+For a general overview of
+.B pty,
+see the
+.B pty(1)
+man page.
+For a description of
+the options,
+see the
+.B pty-opts(1)
+man page.
+
+Executing
+.B pty \fIprogram
+has approximately the same effect as executing
+.I program
+(with zero or more arguments).
+.I program
+is run under a pseudo-terminal. This means several things:
+
+1. Its standard input, output, and error descriptors are redirected to a
+pseudo-terminal device driver, with effects documented in
+.B pty(4)
+and
+.B tty(4).
+This means that
+.I program
+may use
+.B ioctl(),
+for example, to affect the
+pseudo-terminal.
+So programs such as
+.B vi,
+which normally cannot be run
+inside a pipe, will see a terminal instead.
+(Of course,
+.B pty
+may be put
+into a pipe.)
+
+2.
+.B isatty()
+and stdio's buffering will consider those descriptors to be
+pointing to a terminal, with effects documented in
+.B isatty(3)
+and
+.B setbuf(3).
+This means that if 
+.I program
+uses stdio, its output will be
+line-buffered.
+
+3. Input to
+.B pty \fIprogram
+is passed through to the pseudo-terminal
+input. Output and error to the pseudo-terminal are passed through to the
+output of
+.B pty \fIprogram.
+
+4.
+.I program
+has controlling terminal set to the pseudo-terminal, with
+effects documented in
+.B tty(4).
+
+5.
+.B pty \fIprogram
+must have an original controlling tty.
+.B pty
+considers the controlling tty to be the first of
+the following which responds to a TIOCGPGRP ioctl:
+descriptor 3, /dev/tty, descriptor 0, descriptor 1,
+descriptor 2.
+.B pty
+sets that terminal to character-at-a-time, no-echo mode,
+to do as little processing as possible.
+It sets the pseudo-terminal to the original mode.
+When
+.I program
+finishes,
+.B pty
+sets the original terminal back to its original mode.
+Any mode changes on the pseudo-terminal will be lost.
+The original terminal is also reset whenever
+.I program
+is stopped
+(and then set back to character-at-a-time mode when
+.I program
+is restarted).
+
+6.
+Various signals to
+.B pty \fIprogram
+are converted into HUPs for
+.I program.
+Single-process signals may fail upon
+.B pty \fIprogram.
+Process group signals as described in
+.B tty(4)
+will affect it normally.
+
+7.
+All normal exits (including signal exits) for
+.I program
+are converted
+into exit code 0.
+Other exit codes indicate various new,
+pty-related problems, which are also announced on the standard error of
+.B pty \fIprogram.
+
+8.
+All file descriptors except 0, 1, and 2 are closed.
+3 is reopened as the new /dev/tty,
+i.e.,
+the pseudo-terminal.
+All controlling terminal ioctls
+mentioned in
+.B tty(4)
+may be applied to file descriptor 3 instead.
+
+Note that
+.B pty
+transmits job control transparently:
+if
+.I program
+stops with (say)
+a TTIN, then
+.B pty \fIprogram
+will also stop with a TTIN.
+When
+.B pty \fIprogram
+is continued,
+.I program
+will receive a CONT.
+.SH VERSION
+pty version 4.0, 2/9/92.
+.SH AUTHOR
+Copyright 1992, Daniel J. Bernstein.
+.SH "SEE ALSO"
+pty(1),
+pty-opts(1),
+sess(1),
+condom(1),
+pty(4),
+tty(4)

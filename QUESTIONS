@@ -1,0 +1,206 @@
+I selected the questions below from articles posted to the USENET
+newsgroup comp.unix.questions. All the questions are reasonably easy to
+answer with pty and not too easy to answer with other widely available
+tools. So I hope this file is useful, and I hope other software authors
+adopt the QUESTIONS idea.
+
+
+
+1. How do I redirect telnet's input?
+
+Answer: Run pty telnet instead of telnet.
+
+Long answer: Be careful---as soon as telnet successfully connects to the
+remote host, it flushes its input. So if you do something like
+
+   (echo help; echo quit) | pty telnet whatever 25
+
+telnet will read ``help'' and ``quit'', then after a second or two
+connect to the host, then flush the input. It won't get any input after
+that. An easy solution is to delay the input a few seconds:
+
+   (sleep 5; echo help; echo quit) | pty telnet whatever 25
+
+(Try it!) For a more robust solution, see question #4 below.
+
+Why this was a problem: UNIX beginners learn that they can feed input to
+programs with redirection or with pipes. They're often surprised to see
+that this doesn't work:
+
+   (echo help; echo quit) | telnet whatever 25
+
+telnet, like many other utilities, considers itself an ``interactive''
+program. It assumes that it's talking to a user's terminal directly, so
+that it can put the terminal into character-at-a-time mode. If you
+redirect its input, it won't be able to find the terminal, and it'll
+complain or do weird things. Similar comments apply to editors, like vi.
+
+Why the answer solves the problem: pty creates a pseudo-terminal---
+something which looks like a normal terminal but is under pty's control.
+pty runs telnet under the pseudo-terminal and forwards all input and
+output. Now telnet works, because it sees the pseudo-terminal and thinks
+it's talking to the user.
+
+
+
+2. How do I redirect passwd's input?
+
+Answer: pty passwd.
+
+Long answer: Like telnet, passwd flushes its input, so you probably want
+to do something like
+
+   (sleep 5; echo oldpassword; sleep 5; echo newpassword; \
+     sleep 5; echo newpassword) | pty passwd
+
+A better solution appears in #4 below. If you're using passwd as a
+system administrator to change somebody else's password, you want
+
+   (sleep 5; echo password; sleep 5; echo password) | pty passwd shmoe
+
+I certainly don't recommend keeping passwords visible in shell scripts,
+but if you ever need to do this, you can. In single-user mode this is
+reasonably safe.
+
+Why this was a problem: passwd is even more insistent than telnet on
+talking to a user directly. So it opens /dev/tty for its input. Some
+other programs open /dev/tty for both input and output. This avoids any
+redirection you might have put into place.
+
+Why the answer solves the problem: As before, pty creates a
+pseudo-terminal for passwd to talk to. When passwd opens /dev/tty, it
+gets the pseudo-terminal. All the redirection is outside pty, safe from
+passwd's tampering.
+
+
+
+3. Why doesn't tr '[A-Z]' '[a-z]' | cat -t print anything I type?
+
+Answer: Do  nobuf tr '[A-Z]' '[a-z]' | cat -t.
+
+Long answer: You can use pty -0 (also known as condom, or, if you're not
+in such a picturesque mood, as ttyprotect) in place of nobuf, but nobuf
+invokes pty carefully so that EOF on the input will be passed through to
+tr. The effect of this pipeline is to change all uppercase letters into
+lowercase, then print control characters visibly (e.g., ^H instead of
+backspace).
+
+Why this was a problem: The original pipeline, without nobuf, doesn't
+seem to produce any output. What happens is that tr says ``Oh, I say.
+My output is going into a pipe! I guess there's no point in sending
+output as fast as possible. So I'll build up a buffer of output, say up
+to 8192 characters, before I send any of it.'' In fact, any program
+which uses stdio will do the same thing. The problem is that the guess
+is wrong---you don't want 8192 characters held inside tr. You want each
+line sent through without any buffering.
+
+Why the answer solves the problem: Once again, nobuf (really pty)
+creates a pseudo-terminal and runs tr inside it. Then tr (really stdio)
+says ``Oh, I say. My output is going into a terminal! I'll bet there's a
+user watching every word. So I'll send each line as soon as I'm done
+with it.'' And it does.
+
+
+
+4. How do I start a program, respond to its prompts, give the correct
+   replies, and catch the output---all from a script?
+
+If you're good at shell programming, you might have already figured out
+most of this. Let's say you're on a machine (like a Sun) which can
+create named pipes with mknod foo p. You might try to automate a telnet
+session, keeping a record in a file, like this:
+
+  #!/bin/sh
+  (umask 077; mknod input p; mknod output p)
+  telnet foo < input | tee record > output &
+  exec 4>input 5<output
+  waitfor login: <&5 2>/dev/null
+  echo 'username' >&4
+  waitfor Password: <&5 2>/dev/null
+  echo 'password' >&4
+  # etc.
+
+(waitfor reads its input, character by character, until its first
+argument matches the most recent characters as a literal string.)
+
+This almost works. sh can handle this sort of automation without
+trouble. The only problem is that telnet is interactive. That's where
+pty comes in. This works:
+
+  #!/bin/sh
+  (umask 077; mknod input p; mknod output p)
+  pty -0 telnet foo < input | nobuf tee record > output &
+  exec 4>input 5<output
+  waitfor login: <&5 2>/dev/null
+  echo 'username' >&4
+  waitfor Password: <&5 2>/dev/null
+  echo 'password' >&4
+  # etc.
+
+On machines without named pipes, you'll have to create (unnamed) pipes
+in C. But whatever method of automation you use, pty will let you apply
+that method to an interactive program.
+
+
+
+5. How do I get rn to process KILL files in the background?
+
+Answer:
+
+   % sess -R sh -c 'sessname; rn' &
+   [1] 20417        < the shell prints this >
+   session pf       < this comes from sessname >
+   < rn produces output in the background, and you can do something else. >
+   < ... >
+   < when you want to put it back into the foreground: >
+   % %1
+   sess -R sh -c 'sessname; rn'         < the shell prints this >
+   ^C
+   % sess reconnect pf
+   < now it's just as if rn had started in the foreground. >
+
+sess is an abbreviation for ``pty -s''. It starts a _session_ which you
+can disconnect and reconnect. Later on, when you put it into the
+background and type ^C, it stays disconnected in the background. Then
+you can start a new session and reconnect to it.
+
+-R means ``don't read.'' It's a lot like rsh -n. It tells pty not to
+read anything from the keyboard. When you start ``sess reconnect pf'',
+you don't specify -R, so pty does take keyboard input.
+
+Why this was a problem: rn is yet another ``interactive'' program. It
+insists on being in the foreground before it does anything else.
+Unfortunately, after you put it into the foreground, it might spend ten
+minutes processing KILL files!
+
+Why the answer solves the problem: Once again, pty creates a
+pseudo-terminal for rn. Under that pseudo-terminal, rn is in the
+foreground, so it will happily process KILL files.
+
+
+6. How do I get the terminal speed from a shell script?
+
+Answer: Under sh, speed="`pty stty speed`".
+
+Why this was a problem: When you type ``stty speed'', most versions of
+stty will look for the terminal on stdout, get the speed of that
+terminal, and print the result on stderr. So if you try
+
+   speed="`stty speed`"
+
+from sh, two things go wrong. The first is that sh is reading stty's
+output, so when stty looks for the terminal, it'll find only a pipe. The
+second is that when stty prints the result, it goes to stderr, which sh
+isn't paying attention to.
+
+Other versions of stty look for the terminal on stdin or stderr, and
+print the result to stdout. So even if you kludge around the first
+problem by moving file descriptors around, chances are your code will
+mysteriously blow up on the next machine.
+
+Why the answer solves the problem: pty creates a pseudo-terminal for
+stty, with exactly the same characteristics (including speed) as the
+original tty. It doesn't matter whether stty looks at stdin or stdout or
+stderr. It'll just see the pseudo-tty. It also doesn't matter whether
+stty prints its result to stdout or stderr. pty will collect both
+results into its stdout for the shell.

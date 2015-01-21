@@ -1,0 +1,39 @@
+pty version 4.0, February 9, 1992.
+Copyright (c) 1992, Daniel J. Bernstein.
+All rights reserved.
+
+I want this program to be distributed freely in original form.
+
+Once you've received a legal copy of this program, you can use it.
+Forever. Nobody can take that right away from you. You can make changes
+and backup copies for your use (or, if you're an organization, for the
+use of everyone in the organization). You can distribute patches (though
+not patched versions). You'd have all these rights even if I didn't tell
+you about them.
+
+Copyright law gives an author the exclusive right to copy and distribute his
+works. So that you don't have to worry about these legalities, I grant you the
+right to make and distribute exact and complete copies of this program.
+
+On the other hand, I don't want this program sold without my permission.
+Unless I give you permission, you may not charge for copies. You may charge for
+distribution---but only if you first warn the recipient that the code is free,
+and tell him where you got it from.
+
+I don't want this program distributed without my name on it. I also don't
+want lots of different versions running around, so unless I give you permission
+you can't send out a modified version. It's perfectly all right to send other
+people a description of how to make your changes (i.e., a patch), because then
+each recipient knows firsthand what patches he's installed, and I won't go
+chasing ghosts. (An author has no right to control patches in any case.)
+
+If you run an archive site: When you receive a patch supposedly from me, do you
+apply it to the original package and repackage it? I encourage you to change
+your policy, if for no other reason than to give recipients a fallback in case
+of buggy patches. If you're really set on this, how about including the patches
+as separate, unapplied PATCHnn files inside the package? That's fine by me.
+
+If you have questions about this program or about this notice, or if you
+would like additional rights beyond those granted above, or if you have
+a patch that you don't mind sharing, please contact me on the Internet
+at brnstnd@nyu.edu. Special arrangements are available for vendors.

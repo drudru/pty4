@@ -1,0 +1,19 @@
+.TH tty 1
+.SH NAME
+tty \- get terminal name
+.SH SYNOPSIS
+.B tty
+[
+.B\-s
+]
+.SH DESCRIPTION
+.B tty
+prints the pathname of the user's terminal,
+or
+``not a tty''
+if its input is not a terminal.
+.B tty \-s
+prints nothing.
+.SH "EXIT VALUE"
+0 if the input is a terminal,
+1 if it isn't (or if option processing fails).

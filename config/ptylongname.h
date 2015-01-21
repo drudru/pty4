@@ -1,0 +1,6 @@
+#ifndef CONFIG_PTY_LONGNAME_H
+#define CONFIG_PTY_LONGNAME_H
+
+#define PTYLONGNAMELEN 100
+
+#endif

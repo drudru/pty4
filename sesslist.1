@@ -1,0 +1,36 @@
+.TH sesslist 1
+.SH NAME
+sesslist \- list all pty sessions you own
+.SH SYNOPSIS
+.B sesslist
+[
+.B\-0
+]
+.SH DESCRIPTION
+.B sesslist
+lists on its standard output
+all
+.B pty
+sessions owned by the current user id.
+Given
+.B\-0,
+.B sesslist
+will separate output lines by null instead of newline.
+
+The output format is meant for human consumption
+and is not completely defined.
+It is not compatible with previous versions of
+.B sesslist
+and may change in future versions.
+
+This version of
+.B sesslist
+includes non-sessions
+started by
+.B pty.
+.SH DIAGNOSTICS
+Self-explanatory.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+sessname(1)

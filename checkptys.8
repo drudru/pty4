@@ -1,0 +1,24 @@
+.TH checkptys 8
+.SH NAME
+checkptys \- check pseudo-terminal use and pty installation
+.SH SYNOPSIS
+.B checkptys
+.SH DESCRIPTION
+.B checkptys
+produces a report on the entire pseudo-terminal system,
+including users currently logged on,
+the protection of special files such as
+/etc/utmp,
+and the setup of the
+.B pty
+package.
+
+It is assumed that
+.B checkptys
+will be run with the same effective uid as
+.B pty.
+You may want to run it from the daily cron script.
+.SH BUGS
+This man page is woefully incomplete.
+.SH "SEE ALSO"
+pty(1)

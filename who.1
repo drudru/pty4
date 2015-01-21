@@ -1,0 +1,80 @@
+.TH who 1
+.SH NAME
+who \- show who is logged on
+.SH SYNOPSIS
+.B who
+[
+\fB\-lL\fI
+] [
+.I file
+] [
+.B "am I"
+]
+.SH DESCRIPTION
+.B who
+lists the login name, terminal name, and login time
+for each current user.
+Normally
+.B who
+uses
+.I /etc/utmp,
+and omits
+logged-out terminals.
+If you give it a
+.I file,
+such as
+/usr/adm/wtmp,
+it will use that file instead,
+and include logouts as lines with a blank username.
+Other types of entries in
+/usr/adm/wtmp
+are documented
+in
+utmp(5).
+.PP
+Option
+.B\-L
+restricts the display to lines which actually have someone logged on,
+omitting any lines with a blank username, just as
+.B who
+does normally with no arguments.
+Option
+.B\-l
+shows all lines, just as
+.B who
+does normally with a
+.I file
+argument.
+.PP
+With two (or more) arguments,
+as in
+.B who am I
+(and also 
+.B who are you),
+.B who
+tells who you are logged in as,
+including the local host name.
+.SH COMPATIBILITY
+Standard
+.B who am i
+does not give a meaningful error when its input is not a terminal;
+this version does.
+Standard
+.B who
+does not have the
+.B\-l
+option.
+Different versions of
+.B who
+vary in how they treat three or more arguments.
+Other than that, this is an exact clone.
+.SH BUGS
+None known.
+.SH VERSION
+who version 2.0, 7/22/91.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.
+.SH FILES
+/etc/utmp
+.SH "SEE ALSO"
+getuid(2), utmp(5)

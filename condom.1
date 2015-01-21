@@ -1,0 +1,109 @@
+.TH condom 1
+.SH NAME
+condom \- wrap a pseudo-terminal around a program
+.SH SYNOPSIS
+.B condom
+.I program
+.B [
+.I arg ...
+.B ]
+
+.B ttyprotect
+.I program
+.B [
+.I arg ...
+.B ]
+.SH DESCRIPTION
+.B condom,
+which is really just
+.B pty -0,
+runs a program under a pseudo-terminal
+with as little interpretation as possible.
+.B ttyprotect
+is an alternate name for
+.B condom.
+The following are the most noticeable effects of
+.B condom:
+
+1. The
+.B stdio(3)
+routines
+will, by default,
+line-buffer their output rather than
+waiting for a big block of output
+to accumulate.
+
+2.
+.B condom
+always exits with exit code 0,
+provided nothing unusual happens.
+
+3.
+The original terminal
+is always in line-by-line,
+echo mode (or whatever mode it is
+in originally).
+
+4.
+End-of-file
+in the input does not result in an end-of-file for
+.I program.
+(This is an inherent and unfortunate restriction
+of the current pseudo-terminal design.)
+The
+.B nobuf(1)
+wrapper does transmit end-of-file.
+
+5.
+If
+.I program
+refers to /dev/tty,
+it will see the pseudo-terminal
+(i.e., its input and output)
+rather than its original terminal.
+
+6.
+Various signals
+to
+.B condom
+will be forwarded to
+.I program
+as HUPs instead.
+
+.B condom
+is most useful for making sure that
+.I program
+does not affect the
+tty in any strange way,
+particularly during debugging.
+It is also useful for its effect on buffering:
+several
+.B condoms
+may appear in a pipeline.
+For instance,
+
+.EX
+last | condom grep phoenix | more
+.EE
+
+provides much faster turnaround than the same pipeline without
+.B condom,
+as
+the
+.B grep
+no longer buffers its output.
+
+For a more complete description of
+.B pty,
+see the
+.B pty(1),
+.B pty-basic(1),
+and
+.B pty-opts(1)
+man pages.
+.SH "SEE ALSO"
+pty(1),
+pty-basic(1),
+pty-opts(1),
+setbuf(3),
+pty(4)

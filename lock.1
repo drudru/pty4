@@ -1,0 +1,24 @@
+.TH lock 1
+.SH NAME
+lock \- reserve a terminal
+.SH SYNOPSIS
+.B lock
+.SH DESCRIPTION
+.B lock
+requests a password from the user, reads it again for verification,
+and then sits around doing nothing until the password is typed a third
+time.
+.PP
+This clone version of
+.B lock
+corrects several of the original's failings, by being much simpler:
+it doesn't accept
+.I hasta la vista;
+it doesn't accept
+the root password;
+it doesn't time out;
+and it does print a message for each bad password.
+.SH VERSION
+lock version 2.0, 7/27/91.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.

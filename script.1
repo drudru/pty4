@@ -1,0 +1,65 @@
+.TH script 1
+.SH NAME
+script \- make typescript of terminal session
+.SH SYNOPSIS
+.B script
+[
+.B \-a
+] [
+.I file
+]
+.SH DESCRIPTION
+.B script
+makes a typescript of everything printed on your terminal.
+The typescript is written to
+.I file,
+or appended to
+.I file
+if the
+.B \-a
+option is given.
+You can print it later with
+.B lpr.
+If you don't give a filename,
+the typescript is saved in the file
+.I typescript.
+
+Actually,
+this clone version of
+.B script
+just passes its options through to
+.B tee,
+so you can list multiple files if you want.
+
+.B script
+runs whatever shell is in environment variable
+.I SHELL,
+default /bin/sh.
+This clone version uses
+.B pty
+to allocate a pseudo-terminal,
+so the session is listed in
+.I /etc/utmp,
+and lots of things work right that
+didn't work in the original.
+For example:
+.B talk(1)
+works;
+.B mail(1)
+works;
+you can stop and restart the shell,
+with
+.B control-Z
+in
+.I sh
+or
+.B suspend
+in
+.I csh;
+and so on.
+
+The script ends when the forked shell exits.
+This clone version is more careful than the original to
+let every last bit of output appear.
+.SH "SEE ALSO"
+script.tidy(1)

@@ -1,0 +1,138 @@
+Random implementation notes:
+
+Master now runs with uid set to euid. This ensures the integrity of
+various log files at the expense of proper CPU time accounting. On the
+other hand, telnetd and rlogind run as root, so who cares?
+
+The rotate scripts kludge a bit to preserve the owner of each log file.
+Any better solutions?
+
+Makefile uses cc -E and makes several assumptions about cpp for creating
+wtmprotate and friends.
+
+Certain C programs had control charaters, but they're gone. script.tidy
+has control characters, but script.tidy.sh doesn't---Makefile fixes it.
+
+Note that the assumption of two-byte tty extensions runs throughout the
+code.
+
+It might be good to have the master refuse info requests while preco.
+
+If the signaller can't change to PTYDIR, or if it can't read the
+extension over a pipe from the master, or if various other
+pseudo-possible conditions happen, the master may end up disconnected
+even if it's not a session. The child will not run until the first
+successful reconnect.
+
+Note that the master switches controlling ttys only as a service to the
+slave. Nothing in the pty code depends on having the new tty as a ctty.
+This is a good thing, as BSD does not provide any reliable way to
+dissociate from the current controlling terminal. (Exercise: Show how
+TIOCEXCL may be used to prevent dissociation.)
+
+Note that -R forces -T---a lot of things could go wrong otherwise.
+
+Note that the slave unblocks various signals and sets various others to
+SIG_DFL; this will undo any blocking set up before pty was invoked.
+
+Under -R, the master will ignore the tostop setting on the original tty.
+There's no good way to solve this---if you consider it a problem.
+
+There'd be a race between fdsigler and fdsig2us if both master and
+sigler wrote and blocked at once. The solution is simple: fdsig2us is
+*ONLY* for sigler-to-master communication. The signaller never waits for
+a reply on an fdsig2us message; instead it listens attentively for other
+commands. (Similarly, fdsigler is only for master-to-sigler
+communication, but only one way is necessary to avoid deadlock.)
+
+Sun broke the behavior of getdtablesize(); I don't care.
+
+
+
+command to change flagreading?
+
+at last possible moment, check all ifdefs
+
+
+should ttydetach trash all tty descriptors?
+
+should write isatty() and friends, use a cache of /dev stats
+also, isatty() should look at tty* before others. devname.c...
+verify cached device->name mapping by doing one stat()?
+
+if system runs out of fds, won't be able to talk to master. is this a
+problem?
+
+if a program like sesslist gets stopped or blocked, master won't be able
+to reconnect. is this a problem?
+
+ptysuspend -sp7 - suspend as if child had stopped
+ptycont -sp7  ???
+pty -xtp7  ?????
+
+should checkptys do a pff /dev/tty*?
+
+last - clone
+tachywho
+
+if child stops while master is disconnected, stop will be held for
+reconnecting signaller; child will be automatically continued on
+reconnect
+
+should probably ignore SIGPIPE for utilities
+
+note that an independent sesslist may temporarily show master as
+disconnected
+
+definitely should not optimize sigsched
+
+
+
+from ptypaper.9:
+: Instead of copying pseudo-terminal modes from the original terminal, pty
+: will set up a generic new-discipline line-at-a-time mode. (Footnote:
+: This generic mode is defined in tty_initmodes() in the pty source. It
+: should instead be described in further detail in some manual page.)
+now defined in ttydfl.7.
+: Note that pty handles job control
+: correctly
+it now handles it even better than correctly.
+: Note that a
+: session ``program'' is always restarted when it is reconnected.
+still true
+: TERM signals
+no longer---master-sigler communication uses file descriptors
+: Note that if it weren't for WINCH handling and the kernel support for
+: controlling terminals, all mention of the original tty could disappear
+: from the master. This would greatly simplify reconnect, though some
+: stopping complexity would move into the signaller.
+this is now done---winch and cttys are both handled differently now
+: Like all programs, this pty implementation has its caveats. Because the
+: master needs a tty to reconnect to, the reconnecting signaller has to
+: have a file descriptor open and pointing to its current tty.
+no longer true
+: As documented, pseudo-ttys cannot handle EOF.
+doesn't really matter now given nobuf
+: Raw-mode tty processing is problematic. There is no way to set a
+: terminal's modes so that it does no processing and acts just like a
+: pipe.
+ditto
+: pty's random pseudo-tty searching should not be in a fixed order.
+it isn't any more
+: None of the above (except TIOCEXCL, but there are still races) address
+: the problem of a background process keeping access to a pseudo-tty.
+: pty's test for previous access is completely reliable under some
+: variants of the BSD kernel, and completely unreliable under others.
+new test is (i think) completely reliable under all variants
+: A much better solution is to have utmp initialized at system startup to
+: list all available ptys, in the order that login requires; then pty will
+: conform to that order.
+now done, see utmpinit (thanks to paul graham)
+: Even better would be to dedicate a file to
+: session information: /etc/stmp, with permanent records in /usr/adm/ttmp.
+now done, sesslog/sessnow
+: The association between connections and sessions is still logically
+: separate and belongs in yet another file: say /etc/cstmp and
+: /usr/adm/dttmp. pty would maintain these files along with stmp and ttmp.
+now done, sclog/scnow
+

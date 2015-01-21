@@ -1,0 +1,247 @@
+Typescript of a typical pty test run. EOF indicated by [^D]. Beeps
+indicated by ^G.
+
+Script started on Fri Dec 20 01:17:45 PST 1991
+csh% who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+csh% /bin/who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+csh% users
+bernstei bernstei 
+csh% /usr/ucb/users
+bernstei bernstei
+csh% tty
+/dev/ttyq3
+csh% /bin/tty
+/dev/ttyq3
+csh% who am i
+fred!bernstei ttyq3   Dec 20 01:17 (script)
+csh% /bin/who am i
+fred!bernstei ttyq3   Dec 20 01:17 (script)
+csh% who am i < /dev/tty
+csh% /bin/who am i < /dev/tty
+csh% who am i < /dev/null
+who: fatal: stdin not a tty
+csh% /bin/who am i < /dev/null
+bernstei tty??   Dec 20 01:18
+csh% whoami
+bernstei
+csh% /usr/ucb/whoami
+bernstei
+csh% echo hi > /dev/tty
+hi
+csh% echo hi > /dev/ttyq3
+hi
+csh% exclon
+csh% echo hi > /dev/tty
+/dev/tty: Device busy
+csh% echo hi > /dev/ttyq3
+/dev/ttyq3: Device busy
+csh% excloff
+csh% argv0 /usr/lib/sendmail mailq
+                Mail Queue (1 request)
+--QID-- -Size- ----Q-Time----- ------------Sender/Recipient------------
+AA09963*  (no control file)
+csh% lock
+Key: 
+Again: 
+Bad password!
+^G^G^G^G^G^G^G^G^G^G^G^G^G^G^G^G^G^G^G^Gcsh% lock
+Key: 
+Again: 
+^Gcsh% biff
+is n
+csh% mesg
+is y
+csh% pty pwd
+/tmp/pty
+csh% pty who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+csh% pty pty pty pty pty pwd
+/tmp/pty
+csh% time pty pty pty pty pty pty pty pty pty pty pty pty pty pty pty pty pwd
+/tmp/pty
+0.0u 0.3s 0:21 1% 0+104k 0+0io 5pf+0w
+csh% pty -xu who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+bernstei ttyr4   Dec 20 01:23   (pty4.0)
+csh% pty -xu pty -xu pty -xu who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+bernstei ttyr7   Dec 20 01:23   (pty4.0)
+bernstei ttyr9   Dec 20 01:23   (pty4.0)
+bernstei ttyrb   Dec 20 01:23   (pty4.0)
+csh% pty -xRu pty -xRu pty -xRu who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyp2   Dec 20 01:23   (pty4.0)
+bernstei ttyp3   Dec 20 01:23   (pty4.0)
+bernstei ttyp4   Dec 20 01:23   (pty4.0)
+bernstei ttyq3   Dec 20 01:17   (script)
+csh% pty -xu -h random who
+bernstei ttyp0   Dec 20 01:15   (annex2.Berkeley.)
+bernstei ttyq3   Dec 20 01:17   (script)
+bernstei ttyrb   Dec 20 01:24   (random)
+csh% tty
+/dev/ttyq3
+csh% ttydetach sh
+$ echo $$
+2138
+$ ps 2138
+  PID TT STAT  TIME COMMAND
+ 2138 ?  S     0:00 sh
+$ [^D] csh% ttydetach pty -d pwd
+/tmp/pty
+csh% pty -d pwd
+/tmp/pty
+csh% tr '[A-Z]' '[a-z]' | cat -t
+one line of input
+another
+and yet another
+why no output?
+[^D] one line of input
+another
+and yet another
+why no output?
+csh% nobuf tr '[A-Z]' '[a-z]' | cat -t
+one line of input
+one line of input
+ah, instant response!
+ah, instant response!
+the joy of buffer control!
+the joy of buffer control!
+[^D] csh% sess sh
+$ echo $PTY
+r7
+$ sesslist
+session r7 pid 2174 slave 2175 connected
+$ sesswho
+r7  Dec 20 01:29  bernstei          2174
+$ sesswhere
+r7  Dec 20 01:29  connect (unknown)
+$ disconnect
+csh% sesslist
+session r7 pid 2174 slave 2175 disconnected
+csh% sesswho
+r7  Dec 20 01:29  bernstei          2174
+csh% sess sh
+$ sesslist
+session r7 pid 2174 slave 2175 disconnected
+session qf pid 2187 slave 2188 connected
+$ sessname 'foo-prompt'
+$ PS1=foo-prompt' '
+foo-prompt sesslist
+session r7 pid 2174 slave 2175 disconnected
+session qf pid 2187 slave 2188 connected: foo-prompt
+foo-prompt sessname
+session qf: foo-prompt
+foo-prompt reconnect r7
+reconnect: will connect to session r7 when session qf is done
+foo-prompt disconnect
+pty: info: reconnecting to r7
+pty: info: successfully connected to r7
+$ 
+$ reconnect qf
+reconnect: will connect to session qf when session r7 is done
+$ disconnect
+pty: info: reconnecting to qf
+pty: info: successfully connected to qf
+foo-prompt reconnect r7
+reconnect: will connect to session r7 when session qf is done
+foo-prompt disconnect
+pty: info: reconnecting to r7
+pty: info: successfully connected to r7
+$ reconnect qf
+reconnect: will connect to session qf when session r7 is done
+$ sesslist
+session r7 pid 2174 slave 2175 connected (will drop into qf)
+session qf pid 2187 slave 2188 disconnected: foo-prompt
+$ [^D] pty: info: reconnecting to qf
+pty: info: successfully connected to qf
+foo-prompt sesslist
+session qf pid 2187 slave 2188 connected: foo-prompt
+foo-prompt sesswhere
+qf  Dec 20 01:32  connect (unknown)
+foo-prompt sesswho
+qf  Dec 20 01:31  bernstei          2187
+foo-prompt sesslist
+session qf pid 2187 slave 2188 connected: foo-prompt
+foo-prompt sesskill -mysqf
+csh% set notify
+csh% pty sh
+$ ^Z
+Stopped
+csh% bg
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+csh% bg
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+csh% bg
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+csh% bg
+[1]    pty sh &
+csh% bg
+[1]  + Stopped (tty output) pty sh
+
+[1]    pty sh &
+csh% bg
+bg: No current job.
+csh% bg
+bg: No current job.
+
+[1]  + Stopped (tty output) pty sh
+csh% bg
+[1]    pty sh &
+csh% 
+[1]  + Stopped (tty output) pty sh
+bg
+[1]    pty sh &
+csh% 
+[1]  + Stopped (tty output) pty sh
+bg;bg;bg;
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+[1]    pty sh &
+bg: No current job.
+csh% 
+[1]  + Stopped (tty output) pty sh
+
+csh% fg
+pty sh
+
+$ 
+$ [^D] csh% pty sh &
+[1] 2224
+csh% 
+[1]  + Stopped (tty output) pty sh
+
+csh% bg
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+csh% bg
+[1]    pty sh &
+
+[1]  + Stopped (tty output) pty sh
+csh% fg
+pty sh
+$ 
+$ 
+$ 
+$ [^D] csh% pty sh
+$ echo $PTY
+r6
+$ ttydetach sh
+$ echo $PTY
+
+$ [^D] $ [^D] csh% jobs
+csh% [^D] Script done on Fri Dec 20 01:40:01 PST 1991

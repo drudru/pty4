@@ -1,0 +1,191 @@
+Controlling Ttys: A UNIX Horror Story
+Daniel J. Bernstein
+draft 1
+10/6/91
+
+
+1. Introduction
+
+	 ``Normal file access permissions handle security.''
+			---POSIX.1-1988 rationale, B.7.1.1.4
+
+When a user logs into a UNIX system, he is assigned a _tty_ which echoes
+and processes his characters, lets him edit command lines, handles flow
+control on output, and so on. The user's shell reads and writes from the
+tty. Messages sent by the ``write'' and ``talk'' user communication
+commands are also sent through the tty. In fact, ttys (also called
+_terminals_, _teletypes_, and _typewriters_) are the focal point of
+almost all interaction between a user and the system.
+
+Ttys come in two flavors: hardwired ttys and pseudo-ttys. Hardwired ttys
+are connected directly to a physical device, such as a modem.
+Pseudo-ttys may be dynamically connected to any process. For instance,
+the telnetd program links a pseudo-tty with each network connection.
+
+Unlike pipes, ttys have traditionally been assigned a name in the
+filesystem: /dev/console, for instance, is a hardwired tty, and
+/dev/ttyp7 is a pseudo-tty. The primary reason for these files is to
+support user-to-user communication. The system typically assigns
+ownership of tty files to the current user. That way the user can change
+his tty modes to control whether ``write'' and ``talk'' messages are
+allowed.
+
+Occasionally a program (or more often a script) wants to send messages
+to the current tty, no matter what redirection has been put on stdout
+and stderr. (The author defers judgment on whether this is a sensible
+thing for programs to do.) More often, a user wants to know what the
+current tty is, to keep track of what he's doing. One obvious solution
+to both problems is to keep the current tty in an environment variable,
+like TTY=/dev/ttyp7. Then a ``tty'' program can simply echo $TTY, and
+programs which want to talk to the user can open $TTY.
+
+Unfortunately, UNIX never acquired such a simple user-mode solution.
+Instead each process was assigned a ``controlling tty'', something which
+the kernel kept track of and treated specially. That is where the horror
+story begins.
+
+
+2. Controlling ttys
+
+Processes start without a controlling terminal. When a process without a
+controlling tty (also called ``ctty'') opens a tty, it is assigned that
+ctty, and the ctty is preserved through fork() and exec(). Different
+UNIX systems have various methods of removing the association between a
+process and its controlling tty. We will return to this subject below.
+
+A special file, /dev/tty, is accessible to all processes at all times.
+When a process opens /dev/tty, it gets a valid descriptor to its ctty,
+or ENODEV if it does not have a ctty. The protection on the actual tty
+file is irrelevant to /dev/tty.
+
+Under BSD 4.2, the controlling tty has almost no effects on job control.
+BSD 4.3 added some rules in the name of job control security. POSIX went
+much farther, and formalized controlling ttys into ``sessions.'' Each
+process is associated with a session, and various ad-hoc session rules
+are thrown in to complicate job control and signal processing in
+general. (For instance, a process can only stop if its parent is in the
+*same* session but a *different* process group.) The problem of
+supporting job control without losing security became an excuse for
+controlling terminals and sessions.
+
+At this point we can identify six separate forms of access to a tty
+device, say /dev/ttyp7, by a process:
+
+   O (ownership) access: uid owns /dev/ttyp7
+   P (protection) access: uid has permision to open /dev/ttyp7
+   C (ctty) access: current ctty is /dev/ttyp7
+   T (/dev/tty) access: file descriptor to /dev/tty, pointing to /dev/ttyp7
+   S (slave) access: file descriptor to /dev/ttyp7 itself
+   M (master) access: file descriptor to /dev/ptyp7 (pseudo-ttys only)
+
+(The names ``master'' and ``slave'' are pseudo-tty terminology.)
+The system lets a process acquire access in several ways: A process with
+O access can gain P access. A process with P access can gain S access. A
+process with C access can gain T access. A process with M or S access
+can gain C access. A process can gain M access (by opening /dev/ptyp7)
+if no other process has M access.
+
+Under BSD, to shed C access, a process must gain T access (i.e., open
+/dev/tty) and perform the TIOCNOTTY ioctl. Unfortunately, if any process
+applies the TIOCEXCL ioctl to the tty, no process will be able to open
+/dev/tty itself until some process does TIOCNXCL. A program stuck under
+a tty with TIOCEXCL set has *absolutely no reliable way* to dissociate
+itself from that tty. (Perhaps this is not a surprise given that there
+is also absolutely no reliable way for a process to figure out what tty
+it is associated with in the first place.)
+
+And the TIOCEXCL problem pales beside the number of twists and turns
+introduced by POSIX. Obviously this is not a simple system to implement,
+use, understand, or make secure.
+
+
+3. Security
+
+Steve Bellovin pointed out years ago ([]), as did this author ([]), that
+an attacker could abuse controlling ttys to take almost complete control
+of the system. Put simply, it is very difficult to detect, let alone
+revoke, whether another user has S, T, or C access to a tty.
+
+BSD 4.2 and its descendants have a vhangup() system call meant to revoke
+access to a tty. Unfortunately, it doesn't work on most systems, and
+only revokes S access on the rest. (This author considers vhangup() a
+joke in very poor taste.)
+
+Several vendors have attempted to fix this problem. The Convex UNIX 8.0
+documentation, for instance, says that the holes are gone. They're not.
+Convex insisted that its system was secure until the author sent
+explicit code showing how to break tty security.
+
+Similarly, after a series of Internet breakins using tty security holes,
+Sun distributed a patch to their SunOS 4.1 telnetd and rlogind
+supposedly fixing the problems ([]). (It is worth noting that
+essentially the same fix appeared in version 3.0 of the author's pty
+package [] several months before.) Although the patch was enough to
+temporarily stop the attacks, it did not close C access, and hence was
+not enough.
+
+Version 4.0 of the author's pty package ([]) includes security tests
+which detect all possible forms of tty access, and which work on any BSD
+system. It is obscene that such measures have proven necessary. In the
+meantime, crackers from the Netherlands and elsewhere have broken into
+literally thousands of Internet accounts, taking advantage of tty
+security holes at will.
+
+
+4. Simplifications
+
+Under SunOS 4.1, BSD 4.4, and a few other systems, T access has been
+removed. A process which opens /dev/tty will get a full-fledged
+descriptor to /dev/ttyp7; there is no longer any distinction between
+/dev/tty and the real tty file it refers to, except that /dev/tty is
+always completely unprotected.
+
+Any excuse for controlling terminals or POSIX sessions on the basis of
+job control security is completely invalid. As pointed out by the author
+in [], the job control system can be made much simpler, easier to use,
+and simultaneously completely secure, with absolutely no help from cttys
+or POSIX sessions. As suggested above, the controlling tty can be passed
+in the TTY environment variable. C (and T) access, as well as POSIX
+sessions, can simply disappear.
+
+(Apparently the disappearance of cttys and POSIX sessions would remove
+absolutely no functionality, from either the user's or the application's
+point of view; and of course it would make a much cleaner system and
+standard if it were officially adopted. The author would greatly love to
+hear from any proponents of POSIX sessions who can explain what features
+they provide, especially in light of his new, simple, secure job control
+system, when in fact vendors, programmers, and users wouldn't care if
+setsid() became a no-op.)
+
+For backwards compatibility it would be useful to keep a /dev/tty device
+so that programs do not have to be changed to use $TTY. Applications
+running under the author's pty program can normally access the tty
+through descriptor 3, so an easy solution here is to let /dev/tty be a
+simple driver which dup()s fd 3.
+
+The only other useful function of a controlling terminal---viz., to help
+the user categorize processes---is easily taken care of at user level.
+ps can use $TTY for its output. Accounting could be by pid (as it should
+be) instead of by the marginally useful ac_tty.
+
+We're still left with O and P access---ttys are still in the filesystem.
+Given fd 3 support, programs which want to talk to the user don't need
+to open() ttys. The other use of ttys in the filesystem is user-to-user
+communication, but there are several replacement communication systems
+which depend on users running their own daemons rather than having a
+writable tty file. So tty files can disappear. Rather than opening tty
+files, programs can create ttys with a new system call. Then ttys will
+be much more like pipes, which may be accessed only through a pair of
+descriptors.
+
+If these simplifications had been made when UNIX was young, before it
+was used by millions of people, then maybe the controlling terminal
+horror story would not have lasted so long or caused so much damage.
+Fortunately, the story will end soon, as in October 1992 the author will
+distribute code which anyone can use to exploit these holes. Any vendor
+which wants to stay in business will fix its systems long before then.
+
+
+References
+
+XXX

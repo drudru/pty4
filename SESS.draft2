@@ -1,0 +1,289 @@
+An introduction to session management
+Daniel J. Bernstein
+draft 2
+10/4/91
+
+
+1. Session basics
+
+	      < session, n. ... 4. any period of activity. >
+
+When a user sits down in front of a multi-user computer, gives his login
+name and password, and starts typing, he's begun a _session_. Within
+that session he might read mail, edit files, compile and run programs,
+and even play games. What happens if the screen explodes?
+
+A typical UNIX system lets a user log in through a network, or over a
+phone connection between the user's modem and the computer's modem. But
+if the phone line suddenly becomes too noisy, or the network doesn't
+work, the user's connection may drop. The system will then terminate the
+login session. Any programs run by the user will be signalled that the
+connection was hung up. If they ask the user for input, they won't get
+any. If they produce output, the output will vanish.
+
+Other operating systems are more helpful. VMS, for instance, keeps the
+session running inside the computer. When the user establishes another
+connection and logs in again, the computer asks if he'd like to
+reconnect to the original session. Programs started under the session
+won't notice what happened. This is a primitive form of _session
+management_. (It is also an abuse of terminology, as the ``session''---
+the ``period of activity''---really consists of two periods. On the
+other hand, from the point of view of the programs under the session,
+there hasn't been any interruption.)
+
+This paper describes a session management system which the author has
+developed for BSD UNIX and its variants. In section 2 we describe the
+three fundamental operations making up the system. In section 3 we show
+how the system appears to novice users. In section 4 we give several
+examples of more complex session management techniques which cannot be
+performed under VMS.
+
+
+2. sess, disconnect, reconnect
+
+The session management system consists of three basic operations. To
+illustrate the operations we use pictures:
+
+   user ==== tty ==== csh                                         (1)
+
+A double line, such as ====, represents a two-way flow of information.
+Here the user types characters, which the UNIX kernel processes inside a
+tty device and then sends to the user's shell, csh. What csh prints is
+then sent back through the tty to the user.
+
+When csh starts a job, the picture changes:
+
+	        ---------------
+	       /               \
+   user ==== tty ==== csh      who
+               \                |
+                \              sort
+                 \              |
+                  ------------ more
+
+Here the user has started a pipeline, who | sort | more. To simplify the
+illustration somewhat we pretend that all I/O from the pipeline is sent
+through the shell:
+
+   user ==== tty ==== csh ---- who
+                         \      |
+                          \    sort
+                           \    |
+                            -- more
+
+A job consisting of only one process looks like this:
+
+   user ==== tty ==== csh ==== vi
+
+If the user's connection dies, the tty effectively disappears:
+
+		      csh ==== vi
+
+Without a place to send input and output, csh and vi receive the HUP
+signal and die a messy death.
+
+The first session management operation is sess. When the user, starting
+from picture (1), types ``sess ksh'', he creates a session:
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === ksh
+			       \------/      +------+
+
+The session consists of the square box, called the _master_ because it's
+in charge of session management, with ksh running below it. The session
+is connected to the rounded box, also called the _signaller_ because it
+signals csh when the session is finished. Normally both boxes are
+completely transparent, and the user can start jobs under the session:
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === ksh ==== vi     (2)
+			       \------/      +------+
+
+(In fact, from ksh's point of view, the sess box looks just like a tty.
+It is actually a _pseudo-tty_, also known as a _pseudo-terminal_.
+Further discussion of pseudo-terminals is beyond the scope of this
+paper.)
+
+What happens if the user's connection drops? As before, the original tty
+disappears, and csh sputters and dies. The signaller disappears too:
+
+			                     +------+
+                                             | sess | === ksh ==== vi
+			                     +------+
+
+However, the session keeps running. sess doesn't mind being
+disconnected. It waits for a reconnect, as described below. Meanwhile,
+ksh doesn't have the slightest inkling that the connection is gone.
+
+The user can in fact force a disconnect manually. This is the second
+fundamental operation. Starting from picture (2), if the user types
+``disconnect'' to ksh, the connection will be severed:
+
+   user ==== tty ==== csh
+
+				             +------+
+                                             | sess | === ksh ==== vi     (3)
+				             +------+
+
+The signaller exits quietly, and the user can now type commands to csh.
+
+How does the user reconnect to a disconnected session? He uses the third
+fundamental operation, the reconnect command. The system assigns each
+session a name. If the user starts a new session, it might look like
+this:
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === qsh
+			       \------/      +--p7--+
+
+Here ``p7'' is this session's name. Say the disconnected session was
+named ``qb'':
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === qsh
+			       \------/      +--p7--+
+
+				             +------+
+                                             | sess | === ksh ==== vi
+				             +--qb--+
+
+If the user types ``reconnect qb'' to qsh, nothing happens immediately,
+but the signaller remembers his reconnect:
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === qsh
+			       \-+qb+-/      +--p7--+
+
+				             +------+
+                                             | sess | === ksh ==== vi
+				             +--qb--+
+
+As soon as session p7 exits (or is disconnected), the reconnect takes
+effect:
+
+			       /------\      +------+
+   user ==== tty ==== csh ==== | conn | ==== | sess | === ksh ==== vi
+			       \------/      +--qb--+
+
+Now it's just as if session qb had been connected all along. The user
+can type commands to vi. If the connection disappears again, he can
+reconnect again, any number of times.
+
+Why doesn't reconnect take effect immediately? There are several
+reasons. Perhaps the most important is that before reconnecting the user
+may want to terminate the currently connected session---or he may want
+to disconnect it, so that he can reconnect to it later. This reconnect
+interface doesn't force one choice or the other. The user may also want
+to perform some lengthy operations before reconnecting, and it's easier
+to schedule the reconnect once and do it at his leisure than to have to
+worry about the reconnect after all the operations. Finally, it is very
+simple to simulate an immediate reconnect using the above operations, as
+detailed in section 4.
+
+
+3. Session management for users
+
+Most users will never have to learn anything about the sess, disconnect,
+or reconnect commands. If a connection dies, its owner will be shown a
+message like this when he logs in again:
+
+  You have a disconnected session on /dev/ttyra, with these processes:
+  USER       PID %CPU %MEM   SZ  RSS TT STAT START  TIME COMMAND
+  shmoe    17790  0.0  0.9  176  504 ra T    12:47   0:01 vi paper.3
+  shmoe    17331  0.0  0.7   72  384 ra I    12:31   0:00 -bin/csh (csh)
+  shmoe    17330  0.0  0.5  104  264 ra S    12:31   0:00 pty -ds argv0 /bin/csh
+  Would you like to reconnect to that session?
+  If so, type its two-character extension, ra.
+  To instead start a new session as usual, just press return:
+
+The user will recognize the ``paper.3'' he was editing, type ra, and be
+reconnected to his session. The program which handles this is called
+``sessmenu''. While perhaps not as friendly as the reconnect facilities
+under some operating systems, sessmenu isolates even novices from the
+trauma of losing important work.
+
+All sessions also keep track of a long name assigned by the user. The
+``sessname'' command displays or sets the current session name:
+
+   csh% sessname
+   session p7
+   csh% sessname 'writing net test program'
+   csh% sessname
+   session p7: writing net test program
+   csh%
+
+The user can see all his sessions with ``sesslist'':
+
+   csh% sesslist
+   session p7 pid 16614 slave 16615 connected: writing net test program
+   session ra pid 8045 slave 8046 disconnected: finishing up paper.3
+   csh%
+
+Two other useful commands are ``sesswho'', to show all sessions on the
+system and their owners, and ``sesswhere'', to show where those sessions
+are currently connected to. (The system administrator may disable these
+commands for security reasons.)
+
+
+4. Advanced session management techniques
+
+By combining the sess, disconnect, and reconnect commands in simple
+ways, a user can perform surprisingly powerful session operations. In
+this section we give some such combinations. The reader may enjoy
+drawing pictures to see how the commands work.
+
+A user can reconnect to a disconnected session without finishing the
+current session with ``sess reconnect xx''. Another method for doing an
+immediate reconnect is ``reconnect xx; disconnect''. The second method
+is symmetric: if the original session was yy, the user can flip back and
+forth with
+
+   csh-yy% reconnect xx; disconnect
+   ...
+   ksh-xx% reconnect yy; disconnect
+   ...
+   csh-yy% reconnect xx; disconnect
+
+and so on. To immediately reconnect to another session and finish the
+current session, he can use ``reconnect xx; exit'' or ``exec reconnect xx''.
+
+Say a user is in the middle of something---running a crucial
+computation, perhaps, or ``talk''ing to another user---and decides to
+record what's happening. With sess, reconnect, and disconnect, he can do
+this without starting the program again:
+
+   [talk session going on, user types ^Z]
+   Stopped
+   csh% sess sh
+   $ sessname; disconnect
+   session rf
+   csh% reconnect rf; disconnect
+   reconnect: will connect to session rf when session p8 is done
+   pty: info: reconnecting to rf
+   pty: info: successfully connected to rf
+   $ sess reconnect p8 | tee talk-record
+   reconnect: will connect to session p8 when session q0 is done
+   pty: info: reconnecting to p8
+   pty: info: successfully connected to p8
+   csh% fg
+   [talk session continues as before]
+
+Now everything in session p8 is recorded in talk-record. The recording
+is completely transparent and does not require that ``talk'' be
+terminated or restarted.
+
+
+5. Where to find it
+
+The session management system described here is freely available as part
+of the pty 4.0 package. pty 4.0 works on BSD-derived UNIX systems.
+
+The author's session management model is based on Bellovin's ``Session
+Tty'' Manager [1], which is not as powerful as pty but is better
+integrated into the login system.
+
+
+References
+
+[1] Bellovin, S. M.  The ``Session Tty'' Manager. In USENIX Conference
+Proceedings, San Francisco, Summer 1988, 339-354.

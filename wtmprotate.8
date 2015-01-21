@@ -1,0 +1,24 @@
+.TH wtmprotate 8
+.SH NAME
+wtmprotate \- rotate /usr/adm/wtmp logs
+.SH SYNOPSIS
+.B wtmprotate
+.SH DESCRIPTION
+.B wtmprotate
+saves a copy of /usr/adm/wtmp in
+/usr/adm/wtmp.0, then clears
+/usr/adm/wtmp.
+It saves the old wtmp.0 in wtmp.1,
+the old wtmp.1 in wtmp.2, and so on
+up to wtmp.7.
+Any previous wtmp.7 is removed.
+
+.B wtmprotate
+should be run from a weekly or monthly
+.B cron
+script
+to prevent
+/usr/adm/wtmp
+from filling up the disk.
+.SH "SEE ALSO"
+utmpinit(8)

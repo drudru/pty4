@@ -1,0 +1,29 @@
+.TH wall 1
+.SH NAME
+wall \- write to all users
+.SH SYNOPSIS
+.B wall
+.SH DESCRIPTION
+.B wall
+prompts for a message with
+``Broadcast Message,''
+then reads its standard input until end-of-file.
+It then sends this message
+to all logged in users.
+
+Naturally,
+.B mesg
+protections apply.
+
+.B wall
+will refuse to send a message containing any control
+characters (other than the initial beep).
+.SH FILES
+/dev/tty*
+.br
+/etc/utmp
+.SH RESTRICTIONS
+The message is limited to 10000 characters.
+.SH "SEE ALSO"
+mesg(1),
+write(1)

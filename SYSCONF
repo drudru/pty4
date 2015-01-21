@@ -1,0 +1,106 @@
+#!/bin/sh
+# Public domain.
+
+# Configure, eat your heart out.
+
+# make sure we're using sh (stolen from Configure)
+PATH='.:/bin:/usr/bin:/usr/local/bin:/usr/ucb:/usr/local:/usr/lbin:/etc'
+export PATH || (echo "Aargh! This isn't sh. Desperation time. I will now feed myself to sh..."; exec sh $0; sh $0; kill $$)
+echo "We're using sh. Good."
+
+# make sure cmp works
+if cmp README README >/dev/null 2>&1
+then if cmp README SYSCONF >/dev/null 2>&1
+     then echo 'Aargh! cmp returns a zero exit code for different files. This is hopeless.'
+	  exit 1
+     else echo 'You have a normal cmp. Good.'
+     fi
+else echo 'Aargh! cmp returns a nonzero exit code for the same file. This is hopeless.'
+     exit 1
+fi
+
+# config/posix.h: test for setsid()
+cat > .setsid.$$.c << 'YOW'
+extern setsid(); main() { setsid(); }
+YOW
+if cc -o .setsid.$$ .setsid.$$.c >/dev/null 2>&1
+then echo 'You have setsid(). I assume this is a POSIX system. Enabling -DPOSIX_SILLINESS...'
+     sed '4s/^#undef POSIX_SILLINESS$/#define POSIX_SILLINESS/' < config/posix.h > config/posix.h.$$
+     cp config/posix.h.$$ config/posix.h
+     rm config/posix.h.$$
+else echo 'This is not a POSIX system. Disabling -DPOSIX_SILLINESS...'
+     sed '4s/^#define POSIX_SILLINESS$/#undef POSIX_SILLINESS/' < config/posix.h > config/posix.h.$$
+     cp config/posix.h.$$ config/posix.h
+     rm config/posix.h.$$
+fi
+rm -f .setsid.$$ .setsid.$$.c
+
+# config/fdsettrouble.h: FD_ZERO
+cat > .fdzero.$$.c << 'YOW'
+#include <sys/types.h>
+#include <sys/time.h>
+main() { static fd_set rfds; FD_ZERO(&rfds); exit(0); }
+YOW
+if cc -o .fdzero.$$ .fdzero.$$.c >/dev/null 2>&1
+then echo 'You have FD_ZERO. Enabling it...'
+     sed '4s/^#define LACKING_FD_ZERO$/#undef LACKING_FD_ZERO/' < config/fdsettrouble.h > config/fdsettrouble.h.$$
+     cp config/fdsettrouble.h.$$ config/fdsettrouble.h
+     rm config/fdsettrouble.h.$$
+else echo 'You do not have FD_ZERO. Disabling it...'
+     sed '4s/^#undef LACKING_FD_ZERO$/#define LACKING_FD_ZERO/' < config/fdsettrouble.h > config/fdsettrouble.h.$$
+     cp config/fdsettrouble.h.$$ config/fdsettrouble.h
+     rm config/fdsettrouble.h.$$
+fi
+rm -f .fdzero.$$ .fdzero.$$.c
+
+# config/fdsettrouble.h: fd_set
+cat > .fdset.$$.c << 'YOW'
+#include <sys/types.h>
+#include <sys/time.h>
+main() { static fd_set rfds; exit(0); }
+YOW
+if cc -o .fdset.$$ .fdset.$$.c >/dev/null 2>&1
+then echo 'You have fd_set. Enabling it...'
+     sed '5s/^#define DESPERATE_FD_SET$/#undef DESPERATE_FD_SET/' < config/fdsettrouble.h > config/fdsettrouble.h.$$
+     cp config/fdsettrouble.h.$$ config/fdsettrouble.h
+     rm config/fdsettrouble.h.$$
+else echo 'You do not have fd_set. Disabling it...'
+     sed '5s/^#undef DESPERATE_FD_SET$/#define DESPERATE_FD_SET/' < config/fdsettrouble.h > config/fdsettrouble.h.$$
+     cp config/fdsettrouble.h.$$ config/fdsettrouble.h
+     rm config/fdsettrouble.h.$$
+fi
+rm -f .fdset.$$ .fdset.$$.c
+
+# config/ttyopts.h: TTY_WINDOWS
+cat > .winch.$$.c << 'YOW'
+#include <signal.h>
+main() { int winch = SIGWINCH; exit(0); }
+YOW
+if cc -o .winch.$$ .winch.$$.c >/dev/null 2>&1
+then echo 'You have tty windows. Enabling them...'
+     sed '4s/^#undef TTY_WINDOWS$/#define TTY_WINDOWS/' < config/ttyopts.h > config/ttyopts.h.$$
+     cp config/ttyopts.h.$$ config/ttyopts.h
+     rm config/ttyopts.h.$$
+else echo 'You do not have tty windows. Disabling them... (I guess this is BSD 4.2.)'
+     sed '4s/^#define TTY_WINDOWS$/#undef TTY_WINDOWS/' < config/ttyopts.h > config/ttyopts.h.$$
+     cp config/ttyopts.h.$$ config/ttyopts.h
+     rm config/ttyopts.h.$$
+fi
+rm -f .winch.$$ .winch.$$.c
+
+echo ' '
+echo 'Okay, now you should make CHECKCONF and run it.'
+echo 'If you would like me to do this for you, press return.'
+echo 'Otherwise type no and press return, or just interrupt this script.'
+read foo
+case x"$foo"y in
+xy) echo 'make CHECKCONF'
+    if make CHECKCONF
+    then echo './CHECKCONF'
+	 ./CHECKCONF
+    else echo 'Oops, make CHECKCONF failed. I give up: you figure it out.'
+    fi
+    ;;
+esac
+
+exit 0

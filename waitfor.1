@@ -1,0 +1,25 @@
+.TH waitfor 1
+.SH NAME
+waitfor \- read input until it matches a fixed string
+.SH SYNOPSIS
+.B waitfor
+.I string
+.SH DESCRIPTION
+.B waitfor
+reads characters from its input, one at a time,
+until the end of the first occurrence of
+.I string.
+It copies the characters to stderr.
+It leaves the input file position
+just after
+.I string.
+.SH "EXIT VALUE"
+.B waitfor
+exits 0 if it finds
+.I string,
+1 if
+.I string
+is not specified,
+2 if it is not able to allocate memory for an input buffer,
+3 upon an output error,
+4 upon an input error or end of file.

@@ -1,0 +1,71 @@
+.TH reconnect 1
+.SH NAME
+reconnect \- reconnect to a pty session
+.SH SYNOPSIS
+.B reconnect
+[
+.B\-s\fIext
+]
+.I sn
+.SH DESCRIPTION
+.B reconnect
+.I sn
+means
+``When this session finishes or is disconnected,
+reconnect to the session named
+.I sn.''
+This lets you get back to a
+session abandoned by
+.B disconnect
+or by a previously hung up connection.
+
+If you are not currently
+under a
+.B pty
+session,
+or if you would like to reconnect
+immediately without waiting for
+the current session to finish,
+you can use
+
+.EX
+sess reconnect sn
+.EE
+
+Only the latest
+.B reconnect
+matters for a given connection.
+If you leave out
+.I sn,
+the connection will simply drop
+when its association with the
+current session is severed.
+This is the normal behavior.
+
+Normally
+.B reconnect
+handles the session specified by environment variable PTY.
+Option
+.B\-s\fIext
+tells
+.B reconnect
+to set up a reconnect for session
+.I ext
+instead.
+
+Note that, unlike the previous version of
+.B reconnect,
+this version lets you specify a reconnect to a session
+which does not currently exist.
+If the current session exits or is disconnected
+before the other session is created,
+the reconnection will fail.
+
+Note that a session's input and output are handled just
+as efficiently after reconnect as before disconnect.
+.SH DIAGNOSTICS
+Self-explanatory.
+.SH "SEE ALSO"
+pty(1),
+sess(1),
+disconnect(1)

@@ -1,0 +1,488 @@
+.TH pty-opts 1
+.SH NAME
+pty-opts \- run a program under a pseudo-terminal session
+.SH SYNTAX
+pty
+[
+\fB\-qQve3EdDjJsStTrR0\fI\fP
+] [
+\fB\-h\fIhost\fP
+] [
+\fB\-O\fIremote\fP
+] [
+\fB\-p[cCdDeEnNrRsS780]\fI\fP
+] [
+\fB\-x[cCeEfFrRsSiuUwWxX]\fI\fP
+] [
+\fB\-ACHUVW\fI\fP
+]
+program
+[
+arg ...
+]
+.SH DESCRIPTION
+This man page describes the options
+for the
+.B pty
+program.
+For a general overview of
+.B pty,
+see the
+.B pty(1)
+man page.
+For the effects of
+.B pty
+without options,
+see the
+.B pty-basic(1)
+man page.
+
+Options
+.B ACHUVW
+print the authorship notice,
+copyright notice,
+help notice,
+short usage summary,
+version number,
+and warranty information respectively.
+
+.B pty
+has quite a few flags,
+processed left to right.
+It processes its options
+with
+.B getopt.
+It also consistently accepts capital letters to
+turn off options.
+It interprets some switches as turning on or even forcing others,
+as documented below.
+As an example,
+.B\-d
+forces
+.B\-T;
+it sets but doesn't force
+.B\-J.
+To set
+.B\-d
+and
+.B\-j,
+use
+.B\-dj
+in that order.
+
+Here are the options:
+.TP 12
+\fB\-s\fI
+Session.
+When the connection is hung up or manually disconnected,
+.B pty
+will patiently wait for a
+reconnection.
+.I program
+won't notice a thing.
+.B\-s
+sets but does not force
+.B\-xu.
+It forces
+.B\-E.
+This mode is described in detail in the
+.B sess(1)
+man page.
+.TP
+\fB\-S\fI
+No session (default).
+When the connection is hung up,
+.B pty
+will send a HUP to
+.I program.
+.B\-S
+sets but does not force
+.B\-xU.
+.TP
+\fB\-d\fI
+.B pty
+will assume it is already detached from the terminal.
+This forces
+.B\-T;
+it sets but doesn't force
+.B\-J.
+Instead of copying pseudo-terminal modes from
+the original terminal,
+.B pty
+will set up a generic new-discipline line-at-a-time mode,
+as described in the
+.B ttydfl(7)
+man page.
+.TP
+\fB\-D\fI
+.B pty
+will assume that it is attached to a terminal (default).
+This sets
+.B\-jt.
+.TP
+\fB\-e\fI
+Preserve
+standard error (file descriptor 2)
+and standard tty (file descriptor 3).
+.TP
+\fB\-3\fI
+Preserve fd 3, but point fd 2 at the pseudo-terminal.
+.TP
+\fB\-E\fI
+Direct both file descriptors to the pseudo-terminal (default).
+(Actually,
+.B pty
+will point standard error at the tty by name,
+but fd 3 at /dev/tty,
+so that various
+.B ioctl()
+commands on fd 3 will work.)
+Also close all higher-numbered file descriptors.
+.TP
+\fB\-j\fI
+Job control (default): When
+.I program
+stops,
+.B pty
+stops with the same signal.
+When 
+.B pty
+is restarted,
+it restarts
+.I program.
+Note that
+.B pty
+handles job control correctly:
+in particular, if it is told to continue while it is in the
+background, it will stop as many times as necessary until it
+is put into the foreground. (Most character-mode programs will
+hang or run in circles in the same situation.)
+.TP
+\fB\-J\fI
+No job control.
+If
+.I program
+stops,
+.B pty
+will ignore it,
+as if job control didn't exist.
+Note that,
+unlike the previous version of
+.B pty,
+this version does not restart
+.I program
+upon a reconnect.
+.TP
+\fB\-t\fI
+.B pty
+will set the
+original terminal to
+no-echo, character-at-a-time mode (default).
+.TP
+\fB\-T\fI
+.B pty
+will not touch the original terminal, if there is one.
+In the simplest case this means that each character will
+be echoed by two tty drivers.
+It is always dangerous to put two programs in a pipe if both
+change tty modes;
+.B pty,
+.B vi,
+and
+.B more
+are examples of such programs. If you use
+.B pty
+in a pipe
+with another tty-mode-changing program,
+make sure to specify
+.B\-0
+(which is an abbreviation for
+.B\-eSTp0)
+so that
+.B pty
+will neither affect nor be affected by the other program.
+If you use a pipe of ptys,
+you should probably specify
+.B\-0
+in all but one.
+See
+.B condom(1)
+for further details.
+.TP
+\fB\-q\fI
+Quiet.
+.B pty
+will print absolutely nothing on standard error,
+unless
+.I program
+uses standard error
+and
+.B\-e
+is set.
+.B pty
+will communicate strange events through its exit code.
+.TP
+\fB\-Q\fI
+Not quiet (default).
+.B pty
+will generate bits of chatter about interesting
+events,
+such as reconnects.
+.TP
+\fB\-v\fI
+Verbose.
+.B pty
+will blabber on and on and on and on and on and on and on and on.
+It keeps going,
+and going,
+and going,
+and going ...
+.TP
+\fB\-r\fI
+Read input (default).
+.TP
+\fB\-R\fI
+Don't read input.
+In this case
+.B pty
+acts much like
+.B rsh \-n;
+it only forwards output from
+.I program,
+and does not attempt to read input.
+This forces
+.B\-T.
+.TP
+\fB\-h\fIhost
+Use
+.I host
+for entries in utmp
+and wtmp.
+By default
+.B pty
+uses
+pty4.0,
+or pieces together an address from TCPREMOTE if
+it is running under an UCSPI-compliant TCP server.
+This option may be disabled by the system administrator.
+.TP
+\fB\-O\fIremote
+Use
+.I remote
+for entries in scnow and sclog.
+By default
+.B pty
+uses unknown,
+or pieces together an address from various environment variables
+if it is running under any UCSPI-compliant connection tool.
+This option may be disabled by the system administrator.
+.TP
+\fB\-p\fImmm
+Set the
+pseudo-terminal to modes specified by
+.I m.
+Under
+.B\-d,
+defaults are taken from the
+current terminal;
+under
+.B\-D,
+defaults are as below.
+(See the
+.B ttydfl(7)
+man page for more information.)
+Predefined modes:
+.RS
+.TP 5
+.I c
+Set cbreak (character-at-a-time) mode.
+.TP
+.I C
+Do not set cbreak mode (default). 
+.TP
+.I d
+Use the new discipline (default, breaking with tradition).
+.TP
+.I D
+Use the old discipline, without job control or other fancy tty features.
+.TP
+.I e
+Echo characters (default).
+.TP
+.I E
+Do not echo.
+.TP
+.I n
+Change return to newline (default).
+.TP
+.I N
+Do not change return to newline.
+.TP
+.I r
+Set raw mode: do not produce signals, and pass eight-bit characters.
+.TP
+.I R
+Set non-raw (``cooked'') mode (default).
+.TP
+.I s
+Set line editing modes appropriate for a screen (default).
+.TP
+.I S
+Do not set crt line editing modes.
+.TP
+.I 7
+Set a 7-bit data path.
+.TP
+.I 8
+Set an 8-bit data path (default).
+.TP
+.I 0
+An abbreviation for pcrEND.
+.RE
+.TP
+\fB\-x\fIsss
+Use security, experimental, or extended measures specified by
+.I s.
+Some of these may be required or disabled by your system administrator.
+Furthermore,
+these options may be changed arbitrarily in future or alternate
+versions of
+.B pty,
+so you should document any use of
+.B\-x
+in programs and scripts meant to be portable.
+Predefined values:
+.RS
+.TP 5
+.I c
+Change the ownership and protections of the pty for the current user.
+This option is meaningful only because
+pseudo-ttys are in the filesystem.
+This reflects several errors in the
+UNIX system's pseudo-tty
+model, but it's life.
+.TP
+.I C
+Do not change pty ownership (default).
+.TP
+.I e
+Do not guarantee readability of stderr to the pseudo-terminal.
+This should be default, but such programs as
+.I csh
+and
+.I more
+insist on reading from stderr and dying horribly
+if they fail,
+even though half a teaspoon of common sense indicates
+that the
+.B standard error
+descriptor
+is actually meant for printing
+.B errors.
+In any case,
+.B\-xe
+is useless under
+.B\-e.
+.TP
+.I E
+Open stderr for reading and writing (default).
+.TP
+.I f
+FIONREAD flow-control.
+.B pty
+will attempt to prevent buffer overflow in cbreak or cooked mode.
+Note that this is not particularly efficient.
+(This option is rarely appropriate for interactive applications.)
+.TP
+.I F
+No flow-control (default).
+In this case
+the tty driver
+will beep and drop characters if there are already 256 in the buffer,
+as usual.
+.TP
+.I r
+Random pseudo-terminal searching (default).
+This can provide a huge boost to speed and security.
+If, for instance, there are 200 pseudo-ttys and 100 of them
+are in use,
+other programs will make
+100
+.B open()
+calls and will always end up at a predictable spot,
+while it will take
+.B pty
+an average of just two
+calls to find an unused tty.
+It has been suggested to the author that
+this has not been implemented before
+because programmers don't realize
+the virtues of modularity, are consequently too lazy to
+write something like
+.B pty,
+and don't want to take the effort for random pty searching
+in every program that uses pseudo-terminals.
+.TP
+.I R
+Straight pty searching, from the bottom on up.
+.TP
+.I s
+Extra-secure.
+.B pty
+always starts by searching for a pseudo-tty which it can unconditionally
+guarantee to be ``clean,'' i.e., not accessible to
+any other users. If it cannot find a clean line, it
+normally prints a warning and then uses any available tty.
+Under this option it will die instead.
+.TP
+.I S
+Not extra-secure.
+This is the default.
+.TP
+.I i
+Insecure.
+Given this option,
+.B pty
+won't bother looking for a clean tty first.
+It will take the first tty it can find.
+.TP
+.I u
+Enter login name into /etc/utmp.
+As a rule of thumb,
+you should not do this for non-interactive sessions.
+.TP
+.I U
+Do not use utmp (default).
+.TP
+.I w
+Make an entry in /usr/adm/wtmp.
+This probably isn't a good idea for general use,
+as
+connection time recorded in
+.I wtmp
+is often pressed into unfortunate service as
+a senseless basis for charged computer time.
+.TP
+.I W
+Do not use wtmp (default).
+.TP
+.I x
+Set exclusive use on the pty.
+No processes can open the pty after this;
+.I program
+can't even reopen
+/dev/tty!
+(It can use file descriptor 3 instead.)
+This can be very important for security when
+.B pty
+has not been installed by the system administrator.
+It should be set all the time, but
+too many programs rely on a filename for the terminal.
+.TP
+.I X
+Do not set exclusive use (default).
+.RE
+.SH "SEE ALSO"
+pty(1),
+pty-basic(1),
+tty(4)

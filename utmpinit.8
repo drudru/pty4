@@ -1,0 +1,22 @@
+.TH utmpinit 8
+.SH NAME
+utmpinit \- clear /etc/utmp
+.SH SYNOPSIS
+.B utmpinit
+.SH DESCRIPTION
+.B utmpinit
+fills in
+/etc/utmp
+with properly initialized blank entries,
+in the same order as specified by
+.B getttyent(3).
+It should be run from
+.B rc.local
+to initialize
+/etc/utmp
+more professionally than
+.B init(8)
+does.
+.SH "SEE ALSO"
+getttyent(3),
+init(8)

@@ -1,0 +1,49 @@
+  [ pty ]
+> Is it self-contained, or does it
+> require other mods?
+
+There are certain decisions which anyone installing pty has to make:
+
+1. Should pty run setuid root, or setuid some other user, say ``pty''?
+If the latter, then the new user should be added to /etc/passwd, and it
+would help to have utmp and wtmp owned by that user. It's generally
+simpler to have pty running setuid root. This also lets it chown and
+chmod tty device files.
+
+2. pty's INSTALL program copies the binaries to some directory, and sets
+up a directory where pty can store session information. Where do those two
+directories go? The defaults are /usr/local/ptybin and /usr/local/etc/pty.
+pty also maintains four session log files analogous to utmp/wtmp, all in
+/usr/local/etc by default.
+
+3. pty comes with some clones of existing programs: biff, lock, mesg,
+script, tty, users, wall, who, whoami, write. In many cases these offer
+features beyond the standard versions: for instance, if pty has write
+permission to utmp, then script (which is just a tiny shell script) will
+have a utmp entry, so talk/mail/write/etc. will work. Should they
+replace the system versions?
+
+4. pty comes with some programs which belong in rc.local: utmpinit does a
+more professional job of utmp initialization than init does; sessnowinit
+and scnowinit initialize pty's session log files. Should these be added to
+rc.local?
+
+5. pty comes with some programs which belong in daily, weekly, or monthly
+cron scripts: wtmprotate, sessrotate, and sclogrotate. On any modern
+system, of course, wtmp is rotated anyway, but should sessrotate and
+sclogrotate be added to cron scripts? One other program, checkptys,
+produces a report on the entire pty subsystem, and can also be run from
+cron.
+
+6. pty comes with some other utilities not directly related to session
+management. For instance, trecord and tplay make typescripts in a
+special format which includes the timing between characters. My tscript
+utility works just like script but makes a tapescript which you can play
+back later. (This is great for talk conversations and other interactive
+sessions.) Should these utilities be part of a user's standard path?
+Should pty itself be part of a user's standard path?
+
+7. Should some secure ttys be set aside for pty's use? It's easy to
+configure pty so that it only uses (e.g.) tty[u-z]*, which are always
+mode 600 root rather than mode 666 root. Or pty can just compete for
+insecure ttys like everyone else.

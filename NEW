@@ -1,0 +1,163 @@
+pty 4.0 (``newpty'' below) is an almost complete rewrite of pty 3.0
+(``oldpty''). Some features and misfeatures have been removed:
+
+1. newpty no longer allows for systems without file descriptor passing.
+2. newpty does not go to obscene lengths to ensure non-blocking I/O.
+3. newpty does not worry about the buggy MAXUPRC handling in BSD 4.{2,3}.
+4. newpty no longer maintains an entire hierarchy of special files.
+5. The x* utilities and -xS are gone.
+6. For security reasons, -f is gone.
+7. sessuser is gone, as nobody uses it. In its place is sessmenu (see below).
+8. The semi-automatic INSTALL has been replaced by a sane configuration system.
+
+Several new features have been added:
+
+9. You can now disconnect, reconnect, and rename sessions remotely.
+10. newpty performs much better tests than oldpty for tty security.
+11. newpty uses my sigsched library; this greatly simplifies the code.
+12. newpty's random tty searching is not vulnerable to secondary clustering.
+13. newpty supports session and session-connection logs as well as [uw]tmp.
+14. newpty now maintains a single, reliable communications file for each pty.
+15. Internally, the master and signaller are much more cleanly separated.
+16. oldpty's -d served two different functions. newpty's -d is simpler.
+17. When oldpty reaches EOF on input, it loops forever. newpty doesn't.
+18. newpty's error messages are, believe it or not, comprehensible.
+19. newpty lets the user set his host field in utmp (this is configurable).
+20. newpty gives the slave a PTY variable showing its extension (e.g., p7).
+21. A ``sessmenu'' utility can serve as a friendly session-aware login wrapper.
+22. newpty includes ``utmpinit'' to properly initialize /etc/utmp.
+23. A ``nobuf'' utility now provides a completely transparent channel.
+
+
+Further notes on these:
+
+1. Large sections of code in oldpty were dedicated to handling systems
+without reliable file descriptor passing (i.e., many BSD 4.2 variants).
+In newpty this code is gone. I still work around the fd passing bugs
+that appear in the latest SunOS and Ultrix releases.
+
+2. In oldpty, I spent a lot of time on non-blocking I/O. There's a long
+and sad story behind this; read on.
+
+Even though every bit of semantics of read() and write() is drastically
+affected by whether the descriptor is non-blocking, UNIX implementors
+through the years have always---I mean *always*---provided for
+non-blocking I/O on a given open file, rather than on a particular
+descriptor. This is fine for programs which open their own descriptors.
+But pty has to do I/O on input and output descriptors which someone else
+has set up. It can't set NDELAY on those descriptors, because another
+innocent program might be reading or writing the same descriptors, and
+NDELAY will in all probability make that program go into an infinite
+loop!
+
+Of course, what most people do is just select() for readability or
+writability, then assume the operations won't block. The problem is that
+they might block. By the time pty gets around to reading, someone else
+could have read the input which caused select() to return. Similarly,
+any write of N bytes to a pipe with M bytes free, with N > M > 0, will
+block, even though select will return true. So I figured out a way to
+achieve true per-process non-blocking I/O: simply arrange for SIGALRM to
+be sent every fraction of a second, interrupting any blocking read() or
+write(). This works---but not under BSD 4.2, which restarts system
+calls. oldpty's configuration process reflected this extra complexity.
+
+Now I've seen the light. True non-blocking I/O be damned. I'm just going
+to select() and do my operations like everyone else. It's not my fault
+that so few implementors understand why non-blocking I/O on an entire
+open file, rather than a particular descriptor, is so useless. If emacs
+and screen and so many other programs don't care, I won't either. newpty
+takes none of oldpty's precautions, and if it ever blocks because a pipe
+is too full or because there are multiple readers, don't blame me. Blame
+a truly senseless OS design decision.
+
+3. All BSD variants have a maximum process limit, MAXUPRC or maxuprc in
+<sys/param.h>. When there are MAXUPRC processes with some uid (other
+than 0), the next fork() by that uid will fail. A bit of thought will
+convince you that MAXUPRC should apply to the real uid. If it applied to
+the effective uid, then it would affect execve() of setuid programs.
+Even worse, if you had a program setuid (say) ingres, and MAXUPRC users
+ran that program at once, no other users would be able to run it! So
+applying MAXUPRC to the effective uid is a really bad idea.
+
+Guess what? Almost all vendors have applied MAXUPRC to the effective
+uid. On the other hand, few of them have paid any attention to execve()
+of setuid programs, so in the ingres case any number of users can run
+the program, dragging the process count way above MAXUPRC. If you have
+any experience in crashing UNIX systems you'll guess what I'm about to
+say: If the process count for a uid does go above MAXUPRC, then as soon
+as MAXUPRC of those processes die, the system will panic. (This is true
+under, e.g., Ultrix.) Brilliant.
+
+As you can imagine, none of this is conducive to safe setuid
+programming. System panics aside, pty has to fork twice, and I didn't
+want to limit it to MAXUPRC/2 simultaneous invocations. So oldpty swaps
+its uid and euid around each fork.
+
+This introduces its own set of problems. First, the moment a setuid
+program does setreuid(geteuid(),getuid()), it opens itself up to ptraces
+by the (original) real uid. Then all security is lost. Second, this
+swapping is utterly pointless on systems with a sane MAXUPRC based on
+real uids. Finally, I haven't seen anyone else even considering this
+issue, let alone implementing workarounds.
+
+So once again I've joined the crowd. newpty pretends that process limits
+don't exist. If it fails miserably, or your system crashes, just because
+too many users run setuid programs at once, blame an OS design decision
+as senseless as the lack of per-descriptor non-blocking I/O.
+
+5. The x* utilities and -xS are gone because it was easier in practice
+for unprivileged users to install their own copies of pty rather than
+use the system copy in some weird mode.
+
+10. With the default settings, oldpty would detect when someone else had
+the tty open. (Essentially the same test appeared several months later
+in a ``critical'' telnetd/rlogind security patch from Sun.) There were
+two problems: first, in a common case, pty would end up dying instead
+of simply trying another tty; second, the test can be defeated without
+too much trouble (though after these years I'm not sure there are more
+than a few dozen people in the world who know how to exploit this).
+
+pty 4.0 uses a much more reliable test---it's now more secure than the
+tests used by Sun, Convex, DEC, and several other vendors. See the
+SECURITY file for further details.
+
+11. Internally, pty 4.0 now uses my signal-schedule (aka non-preemptive
+threads) library for multitasking. This makes the master much, much
+easier to understand, stops certain race conditions, and removes any
+need for explicit variable locks (like flagqwinch in oldpty).
+
+12. oldpty's pseudo-random tty searching started from a random spot, but
+searched in a fixed order from that spot. This left it open to secondary
+clustering. In newpty I added (in effect) a secondary hash function, and
+since tertiary clustering simply doesn't happen in practice, this
+problem should be gone.
+
+13. newpty supports the session and session-connection logs described in
+my pty paper. I fervently hope that these replace utmp and wtmp, if only
+because they have enough space to store full host information!
+
+14. In oldpty, the master process would create a communications file
+only while it was disconnected, then remove the file when it was
+reconnected. newpty maintains the communications file all the time.
+This eliminates some deep races and lets the master maintain certain
+information instead of storing it in a file for other processes to read.
+
+15. The roles of the master and signaller are now much more clearly
+separated. The master does not know whether the signaller is detached,
+or is manipulating a tty, or supports job control. The master does not
+attempt to associate itself with the signaller's tty on reconnect.
+Instead it always remains associated with the slave's tty.
+
+16. In oldpty, pty -d (detached) combined two functions. One had to do
+with the (obsolete) kernel concept of a controlling tty. The other told
+pty that it was starting under a tty and should pay attention to that
+tty's modes in constructing modes for the pseudo-tty. In newpty, -d
+controls only the second function. pty will automatically handle the
+kernel's controlling ttys correctly in all situations.
+
+17. newpty now treats true EOF on input as (1) a disconnect, if it's a
+session; (2) forcing -R, so that it won't read further input, if it's
+not a session. This is a really tricky issue---ever since UNIX supported
+ttys it's had two different concepts of EOF, and every program that
+handles ttys has to deal with both. If you have any better suggestions,
+let me know.

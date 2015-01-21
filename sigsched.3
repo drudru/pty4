@@ -1,0 +1,471 @@
+.TH sigsched 3
+.SH NAME
+sigsched \- signal-schedule (non-preemptive threads) library
+.SH SYNTAX
+.B #include <sigsched.h>
+
+ss_sig *\fBss_asap()\fR;
+.br
+ss_sig *\fBss_signal(\fIsigno\fB)\fR;
+.br
+ss_sig *\fBss_sigread(\fIfd\fB)\fR;
+.br
+ss_sig *\fBss_sigwrite(\fIfd\fB)\fR;
+.br
+ss_sig *\fBss_sigexcept(\fIfd\fB)\fR;
+
+int \fBss_addsig(\fIsigno\fB)\fR;
+
+int \fBss_schedvwait(\fIsig,t,flagi,i,p,wait\fB)\fR;
+.br
+int \fBss_schedwait(\fIsig,t,i,wait\fB)\fR;
+.br
+int \fBss_sched(\fIsig,t,i\fB)\fR;
+
+int \fBss_schedonce(\fIsig,t,i\fB)\fR;
+
+int \fBss_unschedv(\fIsig,t,flagi,i,p\fB)\fR;
+.br
+int \fBss_unsched(\fIsig,t,i\fB)\fR;
+
+void \fBss_externsetsig(\fIsig,x\fB)\fR;
+
+int \fBss_exec()\fR;
+
+void \fBss_forcewait()\fR;
+.br
+void \fBss_unforcewait()\fR;
+
+ss_thread \fI*t\fP;
+.br
+ss_sig \fI*sig\fP;
+.br
+ss_extern \fI*x\fP;
+.br
+int \fIflagi\fP;
+.br
+int \fIsigno\fP;
+.br
+int \fIfd\fP;
+.br
+ss_id \fIi\fP;
+.br
+ss_idptr \fIp\fP;
+.br
+int \fIwait\fP;
+.SH DESCRIPTION
+.B sigsched
+implements the signal-schedule programming model,
+otherwise known as non-preemptive threads,
+otherwise known as event-based programming.
+A thread is scheduled to execute upon receipt of a signal
+(occurrence of an event).
+Separate threads do not interrupt each other.
+All they can do is schedule more threads.
+
+.B sigsched
+supports far more flexible signals than C normally provides
+under UNIX.
+``File descriptor 2 is writable'' is a signal, for example.
+Furthermore, threads do not have to be written to handle a
+signal at any moment, so code written to use
+.B sigsched
+can be fully optimized.
+In contrast, preemptive thread models (including
+UNIX's usual signal handling) prevent optimizations involving global
+variables.
+
+In general, a ``signal'' is any persistent condition.
+The ``file descriptor 2 is writable'' signal starts when the pipe
+is created, persists at least until the next I/O, finishes when the pipe is
+written to capacity, restarts when the pipe is read, and so on.
+UNIX signals are examples of
+.I thread-lowered signals.
+For example, SIGINT starts (is raised) when some process executes
+kill(pid,SIGINT),
+and finishes (is lowered) just before process pid calls the appropriate
+signal handler (thread).
+Note that if another process calls
+kill(pid,SIGINT)
+before the first one is delivered,
+the signal merely persists.
+It is not delivered twice, as after the first delivery the
+signal condition has been turned off and can't be redelivered.
+Any number of kill()s may be absorbed into
+one delivery in this way.
+
+With
+.B sigsched,
+the program can schedule a thread to execute upon receipt of a signal.
+.B ss_schedvwait()
+and
+.B ss_unschedv()
+schedule and unschedule threads.
+.B ss_exec()
+then executes one scheduled thread after another, as described below.
+It exits when there are no ``important'' threads left to execute.
+
+.B ss_schedvwait(\fIsig,t,flagi,i,p,wait\fB)
+schedules the thread
+.I t
+to execute with integer identifier
+.I i
+or pointer identifier
+.I p
+as soon as condition
+.I sig
+exists.
+This is an ``important'' thread if
+.I wait
+is nonzero.
+.I sig
+is of type
+.B ss_sig *;
+various functions produce signals of this type.
+.I t
+is of type
+.B ss_thread *,
+defined as a function returning void;
+it is called as
+.I t(i)
+if
+.I flagi
+is nonzero,
+or
+.I t(p)
+if
+.I flagi
+is zero.
+.I i
+is an integer,
+which must be zero if
+.I flagi
+is;
+.I p
+is a character pointer,
+which must be a null pointer if
+.I flagi
+is nonzero.
+.B <sigsched.h>
+defines the
+.B ss_sig
+and
+.B ss_thread
+types;
+it also abbreviates
+int as
+.B ss_id
+and char * as
+.B ss_idptr.
+.B ss_schedvwait
+normally returns 0, but will return -1
+in case of a memory allocation failure.
+
+.B ss_unschedv(\fIsig,t,flagi,i,p\fB)
+unschedules the thread
+.I t
+previously scheduled to execute with identifier
+.I i
+or
+.I p
+as soon as condition
+.I sig
+existed.
+.I flagi,
+.I i,
+and
+.I p
+must follow the same rules as above.
+.B ss_unschedv
+returns 0 if the unschedule was successful,
+1 if there was no such thread.
+The effects are currently undefined if a thread is scheduled
+more than once for the same signal with the same identifier.
+
+.B ss_exec()
+executes one thread after another, with no interruptions.
+It calls
+.I t(id)
+only if, for some signal
+.I sig,
+(1)
+.I t(id)
+is scheduled to execute upon
+.I sig;
+(2) condition
+.I sig
+has existed sometime between the end of the last call
+of a thread scheduled upon
+.I sig
+and the beginning of this call to
+.I t(id).
+If a
+thread has just finished executing and
+.B ss_exec
+can call one or more
+threads under the above restrictions, it will choose one and call that,
+unless every scheduled thread has a wait value of 0
+(i.e., there are no important threads scheduled).
+In the latter case
+(including, for example, when there are no threads scheduled at all),
+.B ss_exec()
+immediately returns 0.
+It returns -1 in case of a memory allocation
+failure; in that case its internal structures may be permanently
+corrupted, and
+.B ss_exec
+may not be called again in the same program.
+
+If no threads can execute at a given moment,
+but if some thread is
+scheduled with a non-zero wait value,
+.B ss_exec
+has to wait for a signal
+to arrive.
+As an optimization,
+it will block the process until some
+thread can execute,
+rather than actively polling the set of signals.
+
+Note that if several threads are scheduled to execute upon one signal,
+and the signal suddenly exists, one of the threads will execute.
+If the
+signal turns off before the end of that thread, the other threads
+scheduled upon the signal will not execute.
+This is always true for
+thread-lowered signals.
+This behavior stands in
+marked contrast to the behavior of interrupts---upon an interrupt,
+all the scheduled threads would be executed.
+
+Each signal provides its own scheduling guarantees.
+For instance, under
+this implementation,
+any (waiting) thread scheduled on the signal
+.I ss_asap()
+will in fact execute at some point, provided that no thread
+blocks or loops forever.
+There is no way to keep pushing 
+.I ss_asap()
+farther and farther into the future by scheduling other threads.
+On the other hand,
+.I ss_asap()
+will never flush out the other builtin signals.
+
+.B sigsched
+provides several builtin signals:
+.B ss_asap()
+returns a (pointer to a) signal which always exists.
+.B ss_signal(\fIsigno\fB)
+returns a thread-lowered signal which is true when UNIX signal
+.I signo
+is received.
+.B ss_sigread(\fIfd\fB)
+returns a signal which is true when
+.I fd
+is open and readable, as defined by
+.I select();
+similarly for
+.B ss_sigwrite
+and
+.B ss_sigexcept.
+
+In order for
+.B sigsched
+to handle UNIX signal
+.I signo,
+you must call
+.B ss_addsig(\fIsigno\fB)
+before calling
+.B ss_exec().
+.B ss_addsig
+will discard the old signal handler;
+later,
+.B ss_exec
+will not restore the handler upon exiting, and may
+leave the signal blocked or unblocked.
+.B ss_addsig
+will return 0 normally,
+-1 if
+.I signo
+is not in the right range for signals.
+If another library makes use of
+.B ss_signal
+with
+.B sigsched,
+it should provide a mandatory initialization routine
+which calls
+.B ss_addsig.
+
+.B ss_schedvwait
+and
+.B ss_unschedv
+can be abbreviated in common cases.
+.B ss_schedwait(\fIsig,t,i,wait\fB)
+is the same as
+.B ss_schedvwait(\fIsig,t,1,i,(ss_idptr)0,wait\fB).
+.B ss_sched(\fIsig,t,i\fB)
+is the same with
+.I wait
+set to 0; it is commonly used for
+handling user signals.
+.B ss_unsched(\fIsig,t,i\fB)
+is the same as
+.B ss_unschedv(\fIsig,t,1,i,(ss_idptr)0\fB).
+
+.B ss_schedonce(\fIsig,t,i\fB)
+is similar to
+.B ss_sched
+but is in fact implemented on top of
+.B ss_schedvwait
+with an independent mechanism.
+Each call to
+.B ss_schedonce
+schedules
+.I t
+upon a new signal which starts when
+.I sig
+does and exists only until
+.I t(i)
+is executed.
+After the first execution the new signal disappears.
+The new signal cannot be unscheduled.
+
+.B ss_forcewait()
+tells
+.B sigsched
+that something important is going on outside
+.B sigsched
+and that
+.B ss_exec
+should not exit.
+.B ss_unforcewait()
+negates a previous
+.B ss_forcewait().
+.B ss_forcewait()
+and
+.B ss_unforcewait()
+control a counter, not a flag, so independent
+libraries can use them, but each library should
+be careful to use as many of one call as of the other.
+These functions must not be used outside
+.B ss_exec().
+
+.B ss_externsetsig(sig,x)
+creates a new signal
+in the
+.B ss_sig
+pointed to by
+.I sig.
+.I x
+points to an
+.B ss_extern,
+which is defined as follows in
+.B <sigsched.h>:
+.PP
+.EX
+typedef struct {
+  int (*sched)();
+  int (*unsched)();
+  union { int n; char *c; } u;
+} ss_extern;
+.EE
+.PP
+.I sched
+must be filled in with a scheduling function,
+which is called as
+.I (*sched)(x,t,flagi,i,p,wait)
+whenever
+.B ss_schedvwait(\fIsig,t,flagi,i,p,wait\fB)
+is called;
+similarly for
+.I unsched.
+Use of
+.I u
+is up to the caller.
+.I sched
+and
+.I unsched
+must observe the same rules as
+.B ss_schedvwait
+and
+.B ss_unschedv
+on any other signals: i.e., they must schedule threads upon
+a persistent condition, make sure that
+.I ss_exec
+does not exit if
+any important threads are scheduled, etc.
+Note that
+.B ss_externsetsig
+records
+.I x
+in
+.I sig,
+so
+.I x
+must point either to static memory or to
+memory which remains allocated as long as
+any thread is scheduled or executing upon
+.I sig.
+Memory management of the
+.I sig
+structure itself is up to the caller.
+
+It is recommended that library
+.I foo
+define a
+.B foo_sig
+structure, which contains
+.B ss_sig
+.I sig,
+.B ss_extern
+.I x,
+and any other necessary information for the signals defined by
+.I foo.
+Then
+.B foo_setsig(\fI&fsig,otherinfo\fB),
+where
+.I fsig
+is a
+.B foo_sig,
+should set up the
+.I otherinfo,
+set
+.I fsig.x.u.c
+to
+.I &fsig,
+set
+.I fsig.x.sched
+and
+.I fsig.x.unsched
+appropriately,
+and
+finish with
+.B ss_externsetsig(&fsig.sig,&fsig.x).
+That way the user can use
+.I &fsig.sig
+as the signal argument to
+.B sigsched
+functions,
+and when
+.I foo's
+scheduling routines are passed
+.I &fsig.x
+as a first argument,
+they can get to
+.I otherinfo
+through
+.I fsig.x.u.c.
+
+.B sigsched
+uses
+.B ralloc
+for all allocation.
+.SH VERSION
+sigsched 1.1, August 25, 1991.
+.SH AUTHOR
+Placed into the public domain by Daniel J. Bernstein.
+.SH "SEE ALSO"
+select(2),
+sigvec(2),
+ralloc(3)

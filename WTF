@@ -1,0 +1,68 @@
+BLURB: general blurb on what pty does for you.
+
+README: the first thing you should read; gives basic information and
+credits, and tells you how to get pty running.
+
+FORMLETTER: the form letter you should send back to me when you get to
+step #12 in README.
+
+SYSCONF: a shell script which looks for various features of your system
+and changes config/* accordingly.
+
+WTF: this file, detailing what the, uh, files in this distribution are
+for.
+
+CALLS: a detailed list of all the syscalls and library calls used by
+pty, followed by a breakdown of the calls into groups and a description
+of what you have to do to port each group. This is the most important
+file to read if you're going to port pty to a non-BSD system.
+
+CHANGES: reverse chronological list of most of the changes to pty 4.0.
+
+COPYRIGHT: short explanation of the copying rights I'm giving you.
+
+FILES: list of all the files in the pty 4.0 distribution, in some order;
+used by ``make shar'', for example.
+
+OBJECTS: list of all the .o files created while compiling pty.
+
+BINARIES: list of all the executables created by ``make''.
+
+Makefile: instructions for make, in a reasonably portable format.
+
+TESTS: typescript of a typical pty test run.
+
+NEW: explanation of the important differences between pty 3.0 and pty 4.0.
+
+NOTES: random implementation notes. This is the first place to turn to
+if you're not sure about something in the code.
+
+IMPACT: rough outline of how pty affects the rest of the system.
+
+SECURITY: dull explanation of the incredible torture pty 4.0 has to go
+through to ensure that a tty is ``clean''.
+
+QUESTIONS: questions and pty-based answers, mostly stolen from the
+USENET newsgroup comp.unix.questions.
+
+*.draft*: draft papers dealing with random topics of possible interest.
+SESS.draft2 leads the reader through a session management tutorial.
+
+*.1: man pages for user programs.
+
+*.3: man pages for libraries.
+
+*.7: man pages giving general information.
+
+*.8: man pages for sysadmin programs.
+
+*.c: C source files.
+
+*.h: C header files.
+
+*.sh: sh source files. Makefile does the work of ``compiling'' these.
+
+config/*.h: configuration files. Instead of a big config.h, or lots of
+options spread through Makefile or through individual files, all
+compile-time options are collected here. SYSCONF edits some of these.
+You can edit them too. Or steal them for other programs.

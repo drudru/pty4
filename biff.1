@@ -1,0 +1,57 @@
+.TH biff 1
+.SH NAME
+biff \- be notified if mail arrives and who it is from
+.SH SYNOPSIS
+.B biff
+[
+.B n
+] [
+.B y
+]
+.SH DESCRIPTION
+After
+.B biff y,
+the system will display
+the top of incoming mail on your screen,
+as described in
+.B comsat(8).
+.B biff n
+turns this off.
+.B biff
+applies to your current terminal session;
+typically you'd put a
+.B biff y
+into your
+.I \&.login,
+.I \&.cshrc,
+or
+.I \&.profile.
+
+.B biff
+without an argument tells you your current
+``biffing'' status.
+
+The mail notification enabled by
+.B biff
+operates asynchronously.
+For synchronous notification use the MAIL variable of
+.B sh (1)
+or the mail
+variable of
+.B csh (1).
+
+.B biff
+requires its input to be your terminal session
+(or at least a session you own). All it really
+does is handle the owner-execute bit on the terminal.
+
+.B biff
+only looks at the first letter of its first argument.
+
+.B biff
+was named after a dog at Berkeley.
+.SH "SEE ALSO"
+csh(1),
+sh(1),
+mail(1),
+comsat(8C)
